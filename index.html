@@ -18,26 +18,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-      /* START OF NEW/MODIFIED CSS FOR BACKGROUND FIX */
-      html,
-      body {
-        height: 100%; /* Ensure html and body take full height of viewport initially */
-        margin: 0; /* Remove default browser margin */
-        padding: 0; /* Remove default browser padding */
-      }
-      body {
-        /* Apply your original gradient using explicit CSS */
-        background: linear-gradient(
-          to bottom,
-          #1e3a8a,
-          #2563eb
-        ); /* blue-800 to blue-600 */
-        background-attachment: fixed; /* THIS IS THE KEY PROPERTY for continuous background */
-        font-family: -apple-system, sans-serif; /* Keep your desired font */
-        /* Removed Tailwind classes from here, they are now handled by this CSS */
-      }
-      /* END OF NEW/MODIFIED CSS */
-
       .safe-area-inset {
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
@@ -57,7 +37,9 @@
       }
     </style>
   </head>
-  <body class="font-sans">
+  <body
+    class="bg-gradient-to-b from-blue-800 to-blue-600 min-h-screen font-sans"
+  >
     <div
       id="app"
       class="w-full max-w-md mx-auto p-6 flex-1 flex flex-col justify-between safe-area-inset"
