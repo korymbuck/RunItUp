@@ -16,6 +16,7 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
       .safe-area-inset {
         padding-top: env(safe-area-inset-top);
@@ -36,31 +37,38 @@
       }
     </style>
   </head>
-  <body class="bg-gray-100 font-sans">
-    <div class="w-full max-w-md p-6 mt-10 flex-1 flex flex-col justify-between">
+  <body
+    class="bg-gradient-to-b from-blue-800 to-blue-600 min-h-screen font-sans"
+  >
+    <div
+      id="app"
+      class="w-full max-w-md mx-auto p-6 flex-1 flex flex-col justify-between safe-area-inset"
+    >
       <div>
-        <h1 class="text-3xl font-bold text-center mb-6">RunItUp</h1>
+        <h1 class="text-3xl font-bold text-center mb-6 text-white">RunItUp</h1>
         <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
-          <h2 class="text-2xl font-semibold mb-2">Your Stats</h2>
-          <p class="text-lg">
+          <h2 class="text-2xl font-semibold mb-2 text-white">Your Stats</h2>
+          <p class="text-lg text-white">
             Total Distance: {{ totalDistance.toFixed(2) }} miles
           </p>
-          <p class="text-lg">Total Time: {{ formatTime(totalTime, true) }}</p>
-          <p class="text-lg">XP: {{ Math.floor(xp) }}</p>
+          <p class="text-lg text-white">
+            Total Time: {{ formatTime(totalTime, true) }}
+          </p>
+          <p class="text-lg text-white">XP: {{ Math.floor(xp) }}</p>
           <div class="mt-4">
             <div class="flex items-center mb-2">
               <span class="text-2xl mr-2">{{ currentLevel.emoji }}</span>
-              <span class="text-lg font-semibold"
+              <span class="text-lg font-semibold text-white"
                 >Level: {{ currentLevel.name }}</span
               >
             </div>
             <div class="w-full bg-gray-300 rounded-full h-4">
               <div
-                class="bg-[#007AFF] h-4 rounded-full"
+                class="bg-yellow-300 h-4 rounded-full"
                 :style="{ width: progress + '%' }"
               ></div>
             </div>
-            <p class="text-sm mt-1">
+            <p class="text-sm mt-1 text-white">
               {{ Math.floor(xp) }} / {{ currentLevel.xp === Infinity ? '∞' :
               currentLevel.xp }} XP{{ nextLevel.name !== currentLevel.name ? `
               to ${nextLevel.emoji} ${nextLevel.name}` : '' }}
@@ -68,30 +76,32 @@
           </div>
         </div>
         <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
-          <h2 class="text-2xl font-semibold mb-4">Start Workout</h2>
+          <h2 class="text-2xl font-semibold mb-4 text-white">Start Workout</h2>
           <button
             :disabled="isTracking"
             @click="startWorkout"
-            class="w-full p-3 bg-[#007AFF] text-white font-semibold rounded-lg hover:bg-[#005BB5] transition active:bg-[#003087]"
+            class="w-full p-3 bg-yellow-300 text-gray-800 font-semibold rounded-lg hover:bg-yellow-400 transition active:bg-yellow-500"
             :class="{ 'opacity-50 cursor-not-allowed': isTracking }"
           >
             {{ isTracking ? 'Tracking...' : 'Start Workout' }}
           </button>
           <div v-if="isTracking" class="mt-4">
-            <p class="text-lg">
+            <p class="text-lg text-white">
               Current Distance: {{ currentDistance.toFixed(2) }} miles
             </p>
-            <p class="text-lg">Pace: {{ formatTime(currentPace) }}</p>
+            <p class="text-lg text-white">
+              Pace: {{ formatTime(currentPace) }}
+            </p>
             <button
               @click="stopWorkout"
-              class="w-full p-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition active:bg-[#003087]"
+              class="w-full p-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition active:bg-red-700"
             >
               Stop Workout
             </button>
           </div>
         </div>
         <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
-          <h2 class="text-2xl font-semibold mb-4">Log a Run</h2>
+          <h2 class="text-2xl font-semibold mb-4 text-white">Log a Run</h2>
           <div>
             <input
               v-model.number="distanceInput"
@@ -127,25 +137,53 @@
             </div>
             <button
               @click="logRun"
-              class="w-full p-3 bg-[#007AFF] text-white font-semibold rounded-lg hover:bg-[#005BB5] transition active:bg-[#003087]"
+              class="w-full p-3 bg-yellow-300 text-gray-800 font-semibold rounded-lg hover:bg-yellow-400 transition active:bg-yellow-500"
             >
               Log Run
             </button>
           </div>
         </div>
-        <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
-          <h2 class="text-2xl font-semibold mb-4">Reset Progress</h2>
-          <button
-            @click="resetStats"
-            class="w-full p-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition active:bg-red-700"
-          >
-            Reset Stats
-          </button>
+
+        <div
+          v-if="runHistory.length > 0"
+          class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6"
+        >
+          <h2 class="text-2xl font-semibold mb-4 text-white">Run History</h2>
+          <ul>
+            <li
+              v-for="(run, index) in runHistory"
+              :key="index"
+              class="mb-2 text-white border-b border-gray-400 pb-2 last:border-b-0"
+            >
+              <p class="text-lg">
+                <strong>Date:</strong> {{ new
+                Date(run.date).toLocaleDateString() }}
+              </p>
+              <p class="text-lg">
+                <strong>Distance:</strong> {{ run.distance.toFixed(2) }} miles
+              </p>
+              <p class="text-lg">
+                <strong>Time:</strong> {{ formatTime(run.time, true) }}
+              </p>
+              <p class="text-lg">
+                <strong>Pace:</strong> {{ formatTime(run.pace) }} per mile
+              </p>
+            </li>
+          </ul>
         </div>
       </div>
-      <footer class="text-center text-sm mt-6 mb-4">
+      <footer class="text-center text-sm mt-6 mb-4 text-white">
         © 2025 RunItUp. All rights reserved.
       </footer>
+      <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
+        <h2 class="text-2xl font-semibold mb-4 text-white">Reset Progress</h2>
+        <button
+          @click="resetStats"
+          class="w-full p-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition active:bg-red-700"
+        >
+          Reset Stats
+        </button>
+      </div>
     </div>
     <script>
       function showInstallPrompt() {
@@ -168,23 +206,25 @@
         });
       }
       const { createApp } = Vue;
+
+      const levels = [
+        { name: "Turtle", emoji: "🐢", xp: 100 },
+        { name: "Snail", emoji: "🐌", xp: 250 },
+        { name: "Rabbit", emoji: "🐇", xp: 500 },
+        { name: "Deer", emoji: "🦌", xp: 1000 },
+        { name: "Cheetah", emoji: "🐆", xp: 2000 },
+        { name: "Falcon", emoji: "🦅", xp: 3500 },
+        { name: "Lion", emoji: "🦁", xp: 5500 },
+        { name: "Eagle", emoji: "🦅", xp: Infinity },
+      ];
+
       createApp({
         data() {
           return {
-            levels: [
-              { name: "Turtle", emoji: "🐢", xp: 100 },
-              { name: "Snail", emoji: "🐌", xp: 250 },
-              { name: "Rabbit", emoji: "🐇", xp: 500 },
-              { name: "Deer", emoji: "🦌", xp: 1000 },
-              { name: "Cheetah", emoji: "🐆", xp: 2000 },
-              { name: "Falcon", emoji: "🦅", xp: 3500 },
-              { name: "Lion", emoji: "🦁", xp: 5500 },
-              { name: "Eagle", emoji: "🦅", xp: Infinity },
-            ],
+            levels: levels, // Use the constant defined outside
             totalDistance:
               parseFloat(localStorage.getItem("totalDistance")) || 0,
             totalTime: parseFloat(localStorage.getItem("totalTime")) || 0,
-            runCount: parseInt(localStorage.getItem("runCount")) || 0,
             xp: parseFloat(localStorage.getItem("xp")) || 0,
             isTracking: false,
             watchId: null,
@@ -196,6 +236,7 @@
             hoursInput: null,
             minutesInput: null,
             secondsInput: null,
+            runHistory: JSON.parse(localStorage.getItem("runHistory")) || [], // New: Store run history
           };
         },
         computed: {
@@ -224,10 +265,12 @@
         },
         methods: {
           formatTime(seconds, includeHours = false) {
+            if (seconds === 0 || isNaN(seconds)) return "00:00"; // Handle cases where seconds might be 0 or NaN
             const hrs = Math.floor(seconds / 3600);
             const mins = Math.floor((seconds % 3600) / 60);
             const secs = Math.floor(seconds % 60);
-            if (includeHours) {
+            if (includeHours || hrs > 0) {
+              // Only show hours if explicitly asked or if hours are present
               return `${hrs.toString().padStart(2, "0")}:${mins
                 .toString()
                 .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
@@ -237,7 +280,7 @@
               .padStart(2, "0")}`;
           },
           calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 3958.8;
+            const R = 3958.8; // Radius of Earth in miles
             const dLat = ((lat2 - lat1) * Math.PI) / 180;
             const dLon = ((lon2 - lon1) * Math.PI) / 180;
             const a =
@@ -279,7 +322,7 @@
                   alert("Geolocation error: " + error.message);
                   this.stopWorkout();
                 },
-                { enableHighAccuracy: true, maximumAge: 0 }
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 } // Added timeout
               );
             } else if (!navigator.geolocation) {
               alert("Geolocation is not supported by this browser.");
@@ -292,10 +335,20 @@
             }
             this.isTracking = false;
             if (this.currentDistance > 0) {
+              const workoutTime = (Date.now() - this.startTime) / 1000;
               this.totalDistance += this.currentDistance;
               this.xp += this.currentDistance;
-              this.totalTime += (Date.now() - this.startTime) / 1000;
-              this.runCount++;
+              this.totalTime += workoutTime;
+
+              // Add workout to history
+              this.runHistory.unshift({
+                // Add to the beginning of the array
+                date: new Date().toISOString(),
+                distance: this.currentDistance,
+                time: workoutTime,
+                pace: workoutTime / this.currentDistance,
+              });
+
               this.saveToLocalStorage();
               if (Notification.permission === "granted") {
                 new Notification("Workout Complete!", {
@@ -313,7 +366,7 @@
           },
           logRun() {
             if ("vibrate" in navigator) navigator.vibrate(50); // 50ms vibration
-            const dist = parseFloat(this.distanceInput) || 0;
+            const dist = parseFloat(this.distanceInput);
             const hours = parseInt(this.hoursInput) || 0;
             const minutes = parseInt(this.minutesInput) || 0;
             const seconds = parseInt(this.secondsInput) || 0;
@@ -323,35 +376,45 @@
               this.totalDistance += dist;
               this.totalTime += timeInSeconds;
               this.xp += dist;
-              this.runCount++;
+
+              // Add logged run to history
+              this.runHistory.unshift({
+                date: new Date().toISOString(),
+                distance: dist,
+                time: timeInSeconds,
+                pace: timeInSeconds / dist, // Calculate pace for logged run
+              });
+
               this.distanceInput = null;
               this.hoursInput = null;
               this.minutesInput = null;
               this.secondsInput = null;
               this.saveToLocalStorage();
             } else {
-              alert("Please enter a valid distance (miles) and time.");
+              alert(
+                "Please enter a valid distance (miles) and time (all fields)."
+              );
             }
           },
           saveToLocalStorage() {
             localStorage.setItem("totalDistance", this.totalDistance);
             localStorage.setItem("totalTime", this.totalTime);
-            localStorage.setItem("runCount", this.runCount);
             localStorage.setItem("xp", this.xp);
+            localStorage.setItem("runHistory", JSON.stringify(this.runHistory)); // Save run history
           },
           resetStats() {
             if (confirm("Are you sure you want to reset all stats?")) {
               this.totalDistance = 0;
               this.totalTime = 0;
               this.xp = 0;
-              this.runCount = 0;
+              this.runHistory = []; // Clear run history on reset
               this.saveToLocalStorage();
               if ("vibrate" in navigator) navigator.vibrate(100); // 100ms vibration
             }
           },
         },
         mounted() {
-          this.saveToLocalStorage();
+          this.saveToLocalStorage(); // Ensure initial save
           if (
             Notification.permission !== "granted" &&
             Notification.permission !== "denied"
