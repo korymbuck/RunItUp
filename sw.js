@@ -1,2 +1,61 @@
-if(!self.define){let e,t={};const n=(n,s)=>(n=new URL(n+".js",s).href,t[n]||new Promise(t=>{if("document"in self){const e=document.createElement("script");e.src=n,e.onload=t,document.head.appendChild(e)}else e=n,importScripts(n),t()}).then(()=>{let e=t[n];if(!e)throw new Error(`Module ${n} didn’t register its module`);return e}));self.define=(s,r)=>{const i=e||("document"in self?document.currentScript.src:"")||location.href;if(t[i])return;let o={};const f=e=>n(e,i),l={module:{uri:i},exports:o,require:f};t[i]=Promise.all(s.map(e=>l[e]||f(e))).then(e=>(r(...e),o))}}define(["./workbox-385990f9"],function(e){"use strict";self.addEventListener("message",e=>{e.data&&"SKIP_WAITING"===e.data.type&&self.skipWaiting()}),e.precacheAndRoute([{url:"index.html",revision:"5e947483d6025ffa2af98937b07867fe"}],{}),e.registerRoute(({request:e})=>"navigate"===e.mode,new e.NetworkFirst,"GET"),e.registerRoute(({url:e})=>e.pathname.match(/\.(png|jpg|jpeg|svg)$/),new e.CacheFirst,"GET")});
-//# sourceMappingURL=sw.js.map
+const CACHE_NAME = "runitup-cache-v1";
+const urlsToCache = [
+  "/",
+  "/index.html",
+  "/manifest.json",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "https://cdn.tailwindcss.com",
+  "https://unpkg.com/vue@3/dist/vue.global.js",
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("Opened cache");
+      return cache.addAll(urlsToCache);
+    })
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      if (response) {
+        return response; // Cache hit - return response
+      }
+      return fetch(event.request).then((response) => {
+        // Check if we received a valid response
+        if (!response || response.status !== 200 || response.type !== "basic") {
+          return response;
+        }
+
+        // IMPORTANT: Clone the response. A response is a stream
+        // and can only be consumed once. We must clone it so that
+        // the browser can consume the original response and we can consume the clone.
+        const responseToCache = response.clone();
+
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
+        return response;
+      });
+    })
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
