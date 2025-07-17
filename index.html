@@ -1,428 +1,335 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=no"
-    />
+    <title>RunItUp</title>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
     <meta name="theme-color" content="#1E3A8A" />
-    <title>RunItUp</title>
-    <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-      .safe-area-inset {
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
-      }
-      button {
-        transition: transform 0.1s;
-      }
-      button:active {
-        transform: scale(0.95);
-      }
-      input {
-        font-family: -apple-system, sans-serif;
-        border: 1px solid #ccc;
-        border-radius: 8px;
+      html,
+      body {
+        min-height: 100vh;
+        min-height: 100svh;
+        margin: 0;
+        padding: 0;
       }
     </style>
   </head>
   <body
-    class="bg-gradient-to-b from-blue-800 to-blue-600 min-h-screen font-sans"
+    class="bg-gradient-to-br from-blue-800 via-indigo-900 to-purple-900 text-white min-h-screen"
   >
     <div
       id="app"
-      class="w-full max-w-md mx-auto p-6 flex-1 flex flex-col justify-between safe-area-inset"
+      class="relative z-10 flex flex-col items-center p-4 min-h-screen"
     >
-      <div>
-        <h1 class="text-3xl font-bold text-center mb-6 text-white">RunItUp</h1>
-        <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
-          <h2 class="text-2xl font-semibold mb-2 text-white">Your Stats</h2>
-          <p class="text-lg text-white">
+      <div class="container mx-auto p-4 max-w-md">
+        <h1 class="text-3xl font-bold text-center mb-6">RunItUp</h1>
+
+        <div class="bg-gray-800 bg-opacity-50 rounded-lg p-6 mb-6">
+          <h2 class="text-2xl font-semibold mb-4">Your Stats</h2>
+          <p class="text-lg">
             Total Distance: {{ totalDistance.toFixed(2) }} miles
           </p>
-          <p class="text-lg text-white">
-            Total Time: {{ formatTime(totalTime, true) }}
-          </p>
-          <p class="text-lg text-white">XP: {{ Math.floor(xp) }}</p>
-          <div class="mt-4">
-            <div class="flex items-center mb-2">
-              <span class="text-2xl mr-2">{{ currentLevel.emoji }}</span>
-              <span class="text-lg font-semibold text-white"
-                >Level: {{ currentLevel.name }}</span
-              >
-            </div>
-            <div class="w-full bg-gray-300 rounded-full h-4">
-              <div
-                class="bg-yellow-300 h-4 rounded-full"
-                :style="{ width: progress + '%' }"
-              ></div>
-            </div>
-            <p class="text-sm mt-1 text-white">
-              {{ Math.floor(xp) }} / {{ currentLevel.xp === Infinity ? '∞' :
-              currentLevel.xp }} XP{{ nextLevel.name !== currentLevel.name ? `
-              to ${nextLevel.emoji} ${nextLevel.name}` : '' }}
-            </p>
+          <p class="text-lg">Total Time: {{ formatTime(totalTime) }}</p>
+          <p class="text-lg">XP: {{ xp }}</p>
+        </div>
+
+        <div class="bg-gray-800 bg-opacity-50 rounded-lg p-6 mb-6">
+          <h2 class="text-2xl font-semibold mb-4 flex items-center">
+            🐢 Level: {{ level }}
+            <span class="ml-2 text-sm text-gray-400"
+              >({{ xp }}/{{ xpToNextLevel }} XP to {{ nextLevelIcon }} {{
+              nextLevelName }})</span
+            >
+          </h2>
+          <div class="w-full bg-gray-600 rounded-full h-2.5 mt-2">
+            <div
+              class="bg-green-400 h-2.5 rounded-full"
+              :style="{ width: xpProgress + '%' }"
+            ></div>
           </div>
         </div>
-        <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
-          <h2 class="text-2xl font-semibold mb-4 text-white">Start Workout</h2>
+
+        <div class="flex flex-col space-y-4 mb-6">
           <button
-            :disabled="isTracking"
             @click="startWorkout"
-            class="w-full p-3 bg-yellow-300 text-gray-800 font-semibold rounded-lg hover:bg-yellow-400 transition active:bg-yellow-500"
-            :class="{ 'opacity-50 cursor-not-allowed': isTracking }"
+            class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-300"
           >
-            {{ isTracking ? 'Tracking...' : 'Start Workout' }}
+            Start Workout
           </button>
-          <div v-if="isTracking" class="mt-4">
-            <p class="text-lg text-white">
-              Current Distance: {{ currentDistance.toFixed(2) }} miles
-            </p>
-            <p class="text-lg text-white">
-              Pace: {{ formatTime(currentPace) }}
-            </p>
-            <button
-              @click="stopWorkout"
-              class="w-full p-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition active:bg-red-700"
-            >
-              Stop Workout
-            </button>
-          </div>
-        </div>
-        <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
-          <h2 class="text-2xl font-semibold mb-4 text-white">Log a Run</h2>
-          <div>
-            <input
-              v-model.number="distanceInput"
-              type="number"
-              step="0.01"
-              placeholder="Distance (miles)"
-              class="w-full p-3 mb-4 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
-            />
-            <div class="flex space-x-2 mb-4">
-              <input
-                v-model.number="hoursInput"
-                type="number"
-                placeholder="Hours"
-                class="w-1/3 p-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
-                min="0"
-              />
-              <input
-                v-model.number="minutesInput"
-                type="number"
-                placeholder="Minutes"
-                class="w-1/3 p-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
-                min="0"
-                max="59"
-              />
-              <input
-                v-model.number="secondsInput"
-                type="number"
-                placeholder="Seconds"
-                class="w-1/3 p-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
-                min="0"
-                max="59"
-              />
-            </div>
-            <button
-              @click="logRun"
-              class="w-full p-3 bg-yellow-300 text-gray-800 font-semibold rounded-lg hover:bg-yellow-400 transition active:bg-yellow-500"
-            >
-              Log Run
-            </button>
-          </div>
+          <button
+            @click="logRun"
+            class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-xl transition duration-300"
+          >
+            Log a Run
+          </button>
         </div>
 
         <div
           v-if="runHistory.length > 0"
-          class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6"
+          class="bg-gray-800 bg-opacity-50 rounded-lg p-6 mb-6"
         >
-          <h2 class="text-2xl font-semibold mb-4 text-white">Run History</h2>
+          <h2 class="text-2xl font-semibold mb-4">Run History</h2>
           <ul>
             <li
               v-for="(run, index) in runHistory"
               :key="index"
-              class="mb-2 text-white border-b border-gray-400 pb-2 last:border-b-0"
+              class="mb-2 pb-2 border-b border-gray-700 last:border-b-0"
             >
-              <p class="text-lg">
-                <strong>Date:</strong> {{ new
-                Date(run.date).toLocaleDateString() }}
-              </p>
-              <p class="text-lg">
+              <p><strong>Date:</strong> {{ run.date }}</p>
+              <p>
                 <strong>Distance:</strong> {{ run.distance.toFixed(2) }} miles
               </p>
-              <p class="text-lg">
-                <strong>Time:</strong> {{ formatTime(run.time, true) }}
-              </p>
-              <p class="text-lg">
-                <strong>Pace:</strong> {{ formatTime(run.pace) }} per mile
-              </p>
+              <p><strong>Time:</strong> {{ formatTime(run.time) }}</p>
+              <p><strong>XP Earned:</strong> {{ run.xpEarned }}</p>
             </li>
           </ul>
         </div>
+        <p v-else class="text-center text-gray-400 mt-4">No runs logged yet.</p>
       </div>
-      <footer class="text-center text-sm mt-6 mb-4 text-white">
-        © 2025 RunItUp. All rights reserved.
-      </footer>
-      <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
-        <h2 class="text-2xl font-semibold mb-4 text-white">Reset Progress</h2>
-        <button
-          @click="resetStats"
-          class="w-full p-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition active:bg-red-700"
-        >
-          Reset Stats
-        </button>
-      </div>
-    </div>
-    <script>
-      function showInstallPrompt() {
-        if (
-          navigator.userAgent.match(/iPhone|iPad|iPod/i) &&
-          !window.matchMedia("(display-mode: standalone)").matches
-        ) {
-          alert(
-            "To install RunItUp, tap the Share icon and select 'Add to Home Screen'."
-          );
-        }
-      }
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          setTimeout(showInstallPrompt, 5000); // Show after 5 seconds
-          navigator.serviceWorker.register("/sw.js").then(
-            (reg) => console.log("Service Worker registered", reg),
-            (err) => console.error("Service Worker registration failed", err)
-          );
-        });
-      }
-      const { createApp } = Vue;
 
-      const levels = [
-        { name: "Turtle", emoji: "🐢", xp: 100 },
-        { name: "Snail", emoji: "🐌", xp: 250 },
-        { name: "Rabbit", emoji: "🐇", xp: 500 },
-        { name: "Deer", emoji: "🦌", xp: 1000 },
-        { name: "Cheetah", emoji: "🐆", xp: 2000 },
-        { name: "Falcon", emoji: "🦅", xp: 3500 },
-        { name: "Lion", emoji: "🦁", xp: 5500 },
-        { name: "Eagle", emoji: "🦅", xp: Infinity },
-      ];
+      <footer class="mt-8 text-center text-gray-400 text-sm">
+        <p>&copy; 2025 RunItUp. All rights reserved.</p>
+      </footer>
+    </div>
+
+    <script type="module">
+      import {
+        createApp,
+        ref,
+        computed,
+      } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
+
+      // Function to format time (re-used from previous examples)
+      function formatTime(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        const pad = (num) => String(num).padStart(2, "0");
+        return `${pad(h)}:${pad(m)}:${pad(s)}`;
+      }
 
       createApp({
-        data() {
-          return {
-            levels: levels, // Use the constant defined outside
-            totalDistance:
-              parseFloat(localStorage.getItem("totalDistance")) || 0,
-            totalTime: parseFloat(localStorage.getItem("totalTime")) || 0,
-            xp: parseFloat(localStorage.getItem("xp")) || 0,
-            isTracking: false,
-            watchId: null,
-            startTime: null,
-            lastPosition: null,
-            currentDistance: 0,
-            currentPace: 0,
-            distanceInput: null,
-            hoursInput: null,
-            minutesInput: null,
-            secondsInput: null,
-            runHistory: JSON.parse(localStorage.getItem("runHistory")) || [], // New: Store run history
-          };
-        },
-        computed: {
-          currentLevel() {
-            for (let i = 0; i < this.levels.length; i++) {
-              if (this.xp <= this.levels[i].xp)
-                return { ...this.levels[i], index: i };
-            }
-            return this.levels[this.levels.length - 1];
-          },
-          nextLevel() {
-            return this.levels[
-              Math.min(this.currentLevel.index + 1, this.levels.length - 1)
-            ];
-          },
-          progress() {
-            const prevLevel = this.levels[this.currentLevel.index - 1] || {
-              xp: 0,
-            };
-            return this.currentLevel.xp === Infinity
-              ? 100
-              : ((this.xp - prevLevel.xp) /
-                  (this.currentLevel.xp - prevLevel.xp)) *
-                  100;
-          },
-        },
-        methods: {
-          formatTime(seconds, includeHours = false) {
-            if (seconds === 0 || isNaN(seconds)) return "00:00"; // Handle cases where seconds might be 0 or NaN
-            const hrs = Math.floor(seconds / 3600);
-            const mins = Math.floor((seconds % 3600) / 60);
-            const secs = Math.floor(seconds % 60);
-            if (includeHours || hrs > 0) {
-              // Only show hours if explicitly asked or if hours are present
-              return `${hrs.toString().padStart(2, "0")}:${mins
-                .toString()
-                .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-            }
-            return `${mins.toString().padStart(2, "0")}:${secs
-              .toString()
-              .padStart(2, "0")}`;
-          },
-          calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 3958.8; // Radius of Earth in miles
-            const dLat = ((lat2 - lat1) * Math.PI) / 180;
-            const dLon = ((lon2 - lon1) * Math.PI) / 180;
-            const a =
-              Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos((lat1 * Math.PI) / 180) *
-                Math.cos((lat2 * Math.PI) / 180) *
-                Math.sin(dLon / 2) *
-                Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-          },
-          startWorkout() {
-            if ("vibrate" in navigator) navigator.vibrate(50); // 50ms vibration
-            if (!this.isTracking && navigator.geolocation) {
-              this.isTracking = true;
-              this.startTime = Date.now();
-              this.currentDistance = 0;
-              this.lastPosition = null;
-              this.watchId = navigator.geolocation.watchPosition(
-                (position) => {
-                  const { latitude, longitude } = position.coords;
-                  if (this.lastPosition) {
-                    const dist = this.calculateDistance(
-                      this.lastPosition.latitude,
-                      this.lastPosition.longitude,
-                      latitude,
-                      longitude
-                    );
-                    this.currentDistance += dist;
-                  }
-                  this.lastPosition = { latitude, longitude };
-                  const elapsedSeconds = (Date.now() - this.startTime) / 1000;
-                  this.currentPace =
-                    this.currentDistance > 0
-                      ? elapsedSeconds / this.currentDistance
-                      : 0;
-                },
-                (error) => {
-                  alert("Geolocation error: " + error.message);
-                  this.stopWorkout();
-                },
-                { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 } // Added timeout
-              );
-            } else if (!navigator.geolocation) {
-              alert("Geolocation is not supported by this browser.");
-            }
-          },
-          stopWorkout() {
-            if ("vibrate" in navigator) navigator.vibrate(50); // 50ms vibration
-            if (this.watchId) {
-              navigator.geolocation.clearWatch(this.watchId);
-            }
-            this.isTracking = false;
-            if (this.currentDistance > 0) {
-              const workoutTime = (Date.now() - this.startTime) / 1000;
-              this.totalDistance += this.currentDistance;
-              this.xp += this.currentDistance;
-              this.totalTime += workoutTime;
+        setup() {
+          const totalDistance = ref(
+            parseFloat(localStorage.getItem("totalDistance") || "0")
+          );
+          const totalTime = ref(
+            parseInt(localStorage.getItem("totalTime") || "0", 10)
+          );
+          const xp = ref(parseInt(localStorage.getItem("xp") || "0", 10));
+          const runHistory = ref(
+            JSON.parse(localStorage.getItem("runHistory") || "[]")
+          );
 
-              // Add workout to history
-              this.runHistory.unshift({
-                // Add to the beginning of the array
-                date: new Date().toISOString(),
-                distance: this.currentDistance,
-                time: workoutTime,
-                pace: workoutTime / this.currentDistance,
-              });
+          const levels = [
+            { name: "Turtle", xpNeeded: 0, icon: "🐢" },
+            { name: "Snail", xpNeeded: 100, icon: "🐌" },
+            { name: "Rabbit", xpNeeded: 250, icon: "🐇" },
+            { name: "Deer", xpNeeded: 500, icon: "🦌" },
+            { name: "Cheetah", xpNeeded: 1000, icon: "🐆" },
+          ];
 
-              this.saveToLocalStorage();
-              if (Notification.permission === "granted") {
-                new Notification("Workout Complete!", {
-                  body: `You ran ${this.currentDistance.toFixed(2)} miles!`,
-                  icon: "/icons/icon-192.png",
-                });
-              } else if (Notification.permission !== "denied") {
-                Notification.requestPermission();
+          const level = computed(() => {
+            for (let i = levels.length - 1; i >= 0; i--) {
+              if (xp.value >= levels[i].xpNeeded) {
+                return levels[i].name;
               }
             }
-            this.currentDistance = 0;
-            this.currentPace = 0;
-            this.lastPosition = null;
-            this.startTime = null;
-          },
-          logRun() {
-            if ("vibrate" in navigator) navigator.vibrate(50); // 50ms vibration
-            const dist = parseFloat(this.distanceInput);
-            const hours = parseInt(this.hoursInput) || 0;
-            const minutes = parseInt(this.minutesInput) || 0;
-            const seconds = parseInt(this.secondsInput) || 0;
-            const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
+            return levels[0].name;
+          });
 
-            if (dist > 0 && timeInSeconds > 0) {
-              this.totalDistance += dist;
-              this.totalTime += timeInSeconds;
-              this.xp += dist;
+          const nextLevel = computed(() => {
+            const currentLevelIndex = levels.findIndex(
+              (lvl) => lvl.name === level.value
+            );
+            if (currentLevelIndex < levels.length - 1) {
+              return levels[currentLevelIndex + 1];
+            }
+            return null; // Max level reached
+          });
 
-              // Add logged run to history
-              this.runHistory.unshift({
-                date: new Date().toISOString(),
-                distance: dist,
-                time: timeInSeconds,
-                pace: timeInSeconds / dist, // Calculate pace for logged run
-              });
+          const xpToNextLevel = computed(() => {
+            if (nextLevel.value) {
+              return nextLevel.value.xpNeeded;
+            }
+            return xp.value; // At max level, display current XP
+          });
 
-              this.distanceInput = null;
-              this.hoursInput = null;
-              this.minutesInput = null;
-              this.secondsInput = null;
-              this.saveToLocalStorage();
-            } else {
+          const nextLevelIcon = computed(() => {
+            if (nextLevel.value) {
+              return nextLevel.value.icon;
+            }
+            return "✨"; // Max level icon
+          });
+
+          const nextLevelName = computed(() => {
+            if (nextLevel.value) {
+              return nextLevel.value.name;
+            }
+            return "Max Level";
+          });
+
+          const xpProgress = computed(() => {
+            if (nextLevel.value) {
+              const currentLevelXP = levels.find(
+                (lvl) => lvl.name === level.value
+              ).xpNeeded;
+              const progressRange = nextLevel.value.xpNeeded - currentLevelXP;
+              const currentProgress = xp.value - currentLevelXP;
+              return (currentProgress / progressRange) * 100;
+            }
+            return 100; // At max level
+          });
+
+          const calculateXpEarned = (distance) => {
+            return Math.floor(distance * 10); // 10 XP per mile
+          };
+
+          const saveStats = () => {
+            localStorage.setItem(
+              "totalDistance",
+              totalDistance.value.toString()
+            );
+            localStorage.setItem("totalTime", totalTime.value.toString());
+            localStorage.setItem("xp", xp.value.toString());
+            localStorage.setItem(
+              "runHistory",
+              JSON.stringify(runHistory.value)
+            );
+          };
+
+          const startWorkout = () => {
+            alert("Workout started! (Feature under development)");
+            // Here you would integrate actual GPS tracking, timers, etc.
+            // For now, it's just a placeholder.
+          };
+
+          const logRun = () => {
+            const distanceInput = prompt("Enter run distance in miles:");
+            const timeInput = prompt(
+              "Enter run time in HH:MM:SS (e.g., 00:30:00):"
+            );
+
+            if (distanceInput && timeInput) {
+              const distance = parseFloat(distanceInput);
+              const timeParts = timeInput.split(":").map(Number);
+              const timeInSeconds =
+                (timeParts[0] || 0) * 3600 +
+                (timeParts[1] || 0) * 60 +
+                (timeParts[2] || 0);
+
+              if (
+                !isNaN(distance) &&
+                distance > 0 &&
+                !isNaN(timeInSeconds) &&
+                timeInSeconds >= 0
+              ) {
+                totalDistance.value += distance;
+                totalTime.value += timeInSeconds;
+                const xpEarned = calculateXpEarned(distance);
+                xp.value += xpEarned;
+
+                const runDate = new Date().toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                });
+
+                runHistory.value.unshift({
+                  // Add to the beginning
+                  date: runDate,
+                  distance: distance,
+                  time: timeInSeconds,
+                  xpEarned: xpEarned,
+                });
+
+                saveStats();
+                alert(`Run logged! You earned ${xpEarned} XP.`);
+              } else {
+                alert(
+                  "Invalid input. Please enter valid numbers for distance and time."
+                );
+              }
+            }
+          };
+
+          // PWA Installation Prompt Logic
+          const installPromptEvent = ref(null);
+
+          window.addEventListener("beforeinstallprompt", (e) => {
+            e.preventDefault();
+            installPromptEvent.value = e;
+          });
+
+          function showInstallPrompt() {
+            // Only show custom prompt if the native one hasn't been shown or if it's iOS and not standalone
+            if (installPromptEvent.value) {
+              // For Android, we can trigger the native prompt
+              // installPromptEvent.value.prompt(); // Uncomment if you want to explicitly trigger Android prompt
+              // installPromptEvent.value.userChoice.then((choiceResult) => {
+              //   if (choiceResult.outcome === 'accepted') {
+              //     console.log('User accepted the A2HS prompt');
+              //   } else {
+              //     console.log('User dismissed the A2HS prompt');
+              //   }
+              //   installPromptEvent.value = null;
+              // });
+            } else if (
+              navigator.userAgent.match(/iPhone|iPad|iPod/i) &&
+              !window.matchMedia("(display-mode: standalone)").matches
+            ) {
               alert(
-                "Please enter a valid distance (miles) and time (all fields)."
+                "To install RunItUp, tap the Share icon and select 'Add to Home Screen'."
               );
             }
-          },
-          saveToLocalStorage() {
-            localStorage.setItem("totalDistance", this.totalDistance);
-            localStorage.setItem("totalTime", this.totalTime);
-            localStorage.setItem("xp", this.xp);
-            localStorage.setItem("runHistory", JSON.stringify(this.runHistory)); // Save run history
-          },
-          resetStats() {
-            if (confirm("Are you sure you want to reset all stats?")) {
-              this.totalDistance = 0;
-              this.totalTime = 0;
-              this.xp = 0;
-              this.runHistory = []; // Clear run history on reset
-              this.saveToLocalStorage();
-              if ("vibrate" in navigator) navigator.vibrate(100); // 100ms vibration
-            }
-          },
-        },
-        mounted() {
-          this.saveToLocalStorage(); // Ensure initial save
-          if (
-            Notification.permission !== "granted" &&
-            Notification.permission !== "denied"
-          ) {
-            Notification.requestPermission();
           }
+
+          // Show the prompt after 5 seconds, giving the user some time to browse
+          setTimeout(showInstallPrompt, 5000);
+
+          // Initial load from localStorage
+          saveStats(); // To ensure initial values are saved if localStorage is empty
+
+          return {
+            totalDistance,
+            totalTime,
+            xp,
+            level,
+            xpToNextLevel,
+            nextLevelIcon,
+            nextLevelName,
+            xpProgress,
+            runHistory,
+            formatTime,
+            startWorkout,
+            logRun,
+          };
         },
       }).mount("#app");
+
+      // Service Worker Registration
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((registration) => {
+              console.log(
+                "ServiceWorker registration successful with scope: ",
+                registration.scope
+              );
+            })
+            .catch((err) => {
+              console.log("ServiceWorker registration failed: ", err);
+            });
+        });
+      }
     </script>
   </body>
 </html>
