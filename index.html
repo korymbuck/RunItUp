@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="bg-gradient-to-b from-blue-800 to-blue-600" lang="en">
+<html lang="en" class="bg-gradient-to-b from-blue-800 to-blue-600">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -18,6 +18,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
+      body {
+        overscroll-behavior: none; /* Prevents overscroll bounce on iOS */
+        -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on iOS */
+        background: linear-gradient(to bottom, #1e3a8a, #2563eb);
+      }
       .safe-area-inset {
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
