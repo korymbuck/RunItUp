@@ -410,6 +410,22 @@
                 "Please enter a valid distance (miles) and time (all fields)."
               );
             }
+            if (confirm("Are you sure you want to delete this run?")) {
+              const runToDelete = this.runHistory[index];
+
+              // Subtract the deleted run's stats from the totals
+              this.totalDistance -= runToDelete.distance;
+              this.totalTime -= runToDelete.time;
+              this.xp -= runToDelete.distance; // XP is based on distance
+
+              // Remove the run from the history array
+              this.runHistory.splice(index, 1);
+
+              // Persist the changes
+              this.saveToLocalStorage();
+
+              if ("vibrate" in navigator) navigator.vibrate(50);
+            }
           },
           saveToLocalStorage() {
             localStorage.setItem("totalDistance", this.totalDistance);
