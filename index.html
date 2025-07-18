@@ -18,10 +18,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
+      html {
+        background-color: #1e3a8a; /* Sets the overscroll color */
+      }
       body {
         overscroll-behavior: none; /* Prevents overscroll bounce on iOS */
         -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on iOS */
-        background: linear-gradient(to bottom, #1e3a8a, #2563eb);
       }
       .safe-area-inset {
         padding-top: env(safe-area-inset-top);
