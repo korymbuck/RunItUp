@@ -3,7 +3,7 @@ const urlsToCache = [
   "/",
   "/index.html",
   "/manifest.json",
-  "/icons/icon-192.png",
+  "/icons/hermes-boot.png",
   "https://cdn.tailwindcss.com",
   "https://unpkg.com/vue@3/dist/vue.global.js",
 ];
