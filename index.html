@@ -179,6 +179,12 @@
               <p class="text-lg">
                 <strong>Pace:</strong> {{ formatTime(run.pace) }} per mile
               </p>
+              <button
+                @click="deleteRun(index)"
+                class="mt-2 px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition active:bg-red-700"
+              >
+                Delete Run
+              </button>
             </li>
           </ul>
         </div>
