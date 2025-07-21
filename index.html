@@ -230,7 +230,7 @@
           );
         });
       }
-      const { createApp } = Vue;
+      const { createApp, nextTick } = Vue; // Import nextTick
 
       const levels = [
         { name: "Bronze", emoji: "🥉", xp: 25 },
@@ -250,13 +250,12 @@
       createApp({
         data() {
           return {
-            levels: levels, // Use the constant defined outside
+            levels: levels,
             totalDistance:
               parseFloat(localStorage.getItem("totalDistance")) || 0,
             totalTime: parseFloat(localStorage.getItem("totalTime")) || 0,
             xp: parseFloat(localStorage.getItem("xp")) || 0,
 
-            // New data properties for animation display
             animatedTotalDistance:
               parseFloat(localStorage.getItem("totalDistance")) || 0,
             animatedTotalTime:
@@ -273,13 +272,12 @@
             hoursInput: null,
             minutesInput: null,
             secondsInput: null,
-            runHistory: JSON.parse(localStorage.getItem("runHistory")) || [], // New: Store run history
+            runHistory: JSON.parse(localStorage.getItem("runHistory")) || [],
           };
         },
         computed: {
           currentLevel() {
             for (let i = 0; i < this.levels.length; i++) {
-              // Use the actual (non-animated) XP for level calculation
               if (this.xp <= this.levels[i].xp)
                 return { ...this.levels[i], index: i };
             }
@@ -365,7 +363,8 @@
               alert("Geolocation is not supported by this browser.");
             }
           },
-          stopWorkout() {
+          async stopWorkout() {
+            // Made async
             if ("vibrate" in navigator) navigator.vibrate(50);
             if (this.watchId) {
               navigator.geolocation.clearWatch(this.watchId);
@@ -373,7 +372,7 @@
             this.isTracking = false;
             if (this.currentDistance > 0) {
               const workoutTime = (Date.now() - this.startTime) / 1000;
-              const oldTotalDistance = this.totalDistance; // Store old values
+              const oldTotalDistance = this.totalDistance;
               const oldTotalTime = this.totalTime;
               const oldXp = this.xp;
 
@@ -381,7 +380,6 @@
               this.xp += this.currentDistance;
               this.totalTime += workoutTime;
 
-              // Animate the stats
               this.animateStat(
                 "totalDistance",
                 oldTotalDistance,
@@ -390,7 +388,6 @@
               this.animateStat("totalTime", oldTotalTime, this.totalTime);
               this.animateStat("xp", oldXp, this.xp);
 
-              // Add workout to history
               this.runHistory.unshift({
                 date: new Date().toISOString(),
                 distance: this.currentDistance,
@@ -399,6 +396,10 @@
               });
 
               this.saveToLocalStorage();
+
+              await nextTick(); // Wait for DOM to update after data changes
+              this.scrollToStats(); // Scroll after the DOM has updated
+
               if (Notification.permission === "granted") {
                 new Notification("Workout Complete!", {
                   body: `You ran ${this.currentDistance.toFixed(2)} miles!`,
@@ -413,7 +414,8 @@
             this.lastPosition = null;
             this.startTime = null;
           },
-          logRun() {
+          async logRun() {
+            // Made async
             if ("vibrate" in navigator) navigator.vibrate(50);
             const dist = parseFloat(this.distanceInput);
             const hours = parseInt(this.hoursInput) || 0;
@@ -422,7 +424,7 @@
             const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
 
             if (dist > 0 && timeInSeconds > 0) {
-              const oldTotalDistance = this.totalDistance; // Store old values
+              const oldTotalDistance = this.totalDistance;
               const oldTotalTime = this.totalTime;
               const oldXp = this.xp;
 
@@ -430,7 +432,6 @@
               this.totalTime += timeInSeconds;
               this.xp += dist;
 
-              // Animate the stats
               this.animateStat(
                 "totalDistance",
                 oldTotalDistance,
@@ -439,7 +440,6 @@
               this.animateStat("totalTime", oldTotalTime, this.totalTime);
               this.animateStat("xp", oldXp, this.xp);
 
-              // Add logged run to history
               this.runHistory.unshift({
                 date: new Date().toISOString(),
                 distance: dist,
@@ -452,26 +452,28 @@
               this.minutesInput = null;
               this.secondsInput = null;
               this.saveToLocalStorage();
+
+              await nextTick(); // Wait for DOM to update after data changes
+              this.scrollToStats(); // Scroll after the DOM has updated
             } else {
               alert(
                 "Please enter a valid distance (miles) and time (all fields)."
               );
             }
           },
-          deleteRun(index) {
+          async deleteRun(index) {
+            // Made async
             if (confirm("Are you sure you want to delete this run?")) {
               const runToDelete = this.runHistory[index];
 
-              const oldTotalDistance = this.totalDistance; // Store old values
+              const oldTotalDistance = this.totalDistance;
               const oldTotalTime = this.totalTime;
               const oldXp = this.xp;
 
-              // Subtract the deleted run's stats from the totals
               this.totalDistance -= runToDelete.distance;
               this.totalTime -= runToDelete.time;
-              this.xp -= runToDelete.distance; // XP is based on distance
+              this.xp -= runToDelete.distance;
 
-              // Animate the stats
               this.animateStat(
                 "totalDistance",
                 oldTotalDistance,
@@ -480,43 +482,38 @@
               this.animateStat("totalTime", oldTotalTime, this.totalTime);
               this.animateStat("xp", oldXp, this.xp);
 
-              // Remove the run from the history array
               this.runHistory.splice(index, 1);
 
-              // Persist the changes
               this.saveToLocalStorage();
+
+              await nextTick(); // Wait for DOM to update after data changes
+              this.scrollToStats(); // Scroll after the DOM has updated
 
               if ("vibrate" in navigator) navigator.vibrate(50);
             }
           },
 
-          // --- New GSAP animation method ---
           animateStat(statName, startValue, endValue) {
-            // Determine which animated property to update
             let animatedPropName;
             if (statName === "totalDistance")
               animatedPropName = "animatedTotalDistance";
             else if (statName === "totalTime")
               animatedPropName = "animatedTotalTime";
             else if (statName === "xp") animatedPropName = "animatedXp";
-            else return; // Don't animate if unknown stat name
+            else return;
 
-            // Stop any ongoing animation for this property
             gsap.killTweensOf(this[animatedPropName]);
 
-            // Animate the proxy property
             gsap.fromTo(
-              this.$data, // Target the data object directly
-              { [animatedPropName]: startValue }, // Start from the previous actual value
+              this.$data,
+              { [animatedPropName]: startValue },
               {
-                [animatedPropName]: endValue, // Animate to the new actual value
-                duration: 1.5, // How long the animation takes
-                ease: "elastic.out(1, 0.5)", // Balatro-style bouncy easing
-                // You can also add onUpdate or onComplete here if needed
+                [animatedPropName]: endValue,
+                duration: 1.5,
+                ease: "elastic.out(1, 0.5)",
               }
             );
 
-            // Optional: Animate the stats card itself for extra juiciness
             gsap.fromTo(
               this.$refs.statsCard,
               { scale: 1, y: 0 },
@@ -530,15 +527,29 @@
               }
             );
           },
-          // --- End New GSAP animation method ---
+
+          // --- New scroll method ---
+          scrollToStats() {
+            // nextTick ensures the DOM is fully updated before scrolling
+            this.$nextTick(() => {
+              if (this.$refs.statsCard) {
+                this.$refs.statsCard.scrollIntoView({
+                  behavior: "smooth", // Smooth scrolling animation
+                  block: "start", // Align the top of the element with the top of the viewport
+                });
+              }
+            });
+          },
+          // --- End New scroll method ---
 
           saveToLocalStorage() {
             localStorage.setItem("totalDistance", this.totalDistance);
             localStorage.setItem("totalTime", this.totalTime);
             localStorage.setItem("xp", this.xp);
-            localStorage.setItem("runHistory", JSON.stringify(this.runHistory)); // Save run history
+            localStorage.setItem("runHistory", JSON.stringify(this.runHistory));
           },
-          resetStats() {
+          async resetStats() {
+            // Made async
             if (confirm("Are you sure you want to reset all stats?")) {
               const oldTotalDistance = this.totalDistance;
               const oldTotalTime = this.totalTime;
@@ -547,26 +558,27 @@
               this.totalDistance = 0;
               this.totalTime = 0;
               this.xp = 0;
-              this.runHistory = []; // Clear run history on reset
+              this.runHistory = [];
 
-              // Animate reset
               this.animateStat("totalDistance", oldTotalDistance, 0);
               this.animateStat("totalTime", oldTotalTime, 0);
               this.animateStat("xp", oldXp, 0);
 
               this.saveToLocalStorage();
+
+              await nextTick(); // Wait for DOM to update after data changes
+              this.scrollToStats(); // Scroll after the DOM has updated
+
               if ("vibrate" in navigator) navigator.vibrate(100);
             }
           },
         },
         mounted() {
-          // When the component mounts, set the animated values to the actual stored values
-          // This ensures they start at the correct visual state without animating on load.
           this.animatedTotalDistance = this.totalDistance;
           this.animatedTotalTime = this.totalTime;
           this.animatedXp = this.xp;
 
-          this.saveToLocalStorage(); // Ensure initial save
+          this.saveToLocalStorage();
           if (
             Notification.permission !== "granted" &&
             Notification.permission !== "denied"
