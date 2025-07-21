@@ -52,7 +52,7 @@
       <div>
         <div class="text-center mb-3">
           <img
-            src="/icons/hermes-bootcopy.PNG"
+            src="/icons/boot.svg"
             alt="RunItUp Logo"
             class="h-auto w-auto inline-block"
           />
@@ -374,7 +374,7 @@
               if (Notification.permission === "granted") {
                 new Notification("Workout Complete!", {
                   body: `You ran ${this.currentDistance.toFixed(2)} miles!`,
-                  icon: "/icons/hermes-bootcopy.PNG",
+                  icon: "/icons/boot.svg",
                 });
               } else if (Notification.permission !== "denied") {
                 Notification.requestPermission();
