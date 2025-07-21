@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#1E3A8A" />
     <title>RunItUp</title>
     <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/icons/hermes-bootcopy.png" />
+    <link rel="apple-touch-icon" href="/icons/hermes-bootcopy.PNG" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
@@ -52,7 +52,7 @@
       <div>
         <div class="text-center mb-3">
           <img
-            src="/icons/hermes-bootcopy.png"
+            src="/icons/hermes-bootcopy.PNG"
             alt="RunItUp Logo"
             class="h-auto w-auto inline-block"
           />
@@ -374,7 +374,7 @@
               if (Notification.permission === "granted") {
                 new Notification("Workout Complete!", {
                   body: `You ran ${this.currentDistance.toFixed(2)} miles!`,
-                  icon: "/icons/hermes-bootcopy.png",
+                  icon: "/icons/hermes-bootcopy.PNG",
                 });
               } else if (Notification.permission !== "denied") {
                 Notification.requestPermission();
