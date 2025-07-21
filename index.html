@@ -230,7 +230,7 @@
           );
         });
       }
-      const { createApp, nextTick } = Vue; // Import nextTick
+      const { createApp, nextTick } = Vue;
 
       const levels = [
         { name: "Bronze", emoji: "🥉", xp: 25 },
@@ -364,7 +364,6 @@
             }
           },
           async stopWorkout() {
-            // Made async
             if ("vibrate" in navigator) navigator.vibrate(50);
             if (this.watchId) {
               navigator.geolocation.clearWatch(this.watchId);
@@ -397,8 +396,8 @@
 
               this.saveToLocalStorage();
 
-              await nextTick(); // Wait for DOM to update after data changes
-              this.scrollToStats(); // Scroll after the DOM has updated
+              await nextTick();
+              this.scrollToTop(); // Changed to scroll to top
 
               if (Notification.permission === "granted") {
                 new Notification("Workout Complete!", {
@@ -415,7 +414,6 @@
             this.startTime = null;
           },
           async logRun() {
-            // Made async
             if ("vibrate" in navigator) navigator.vibrate(50);
             const dist = parseFloat(this.distanceInput);
             const hours = parseInt(this.hoursInput) || 0;
@@ -453,8 +451,8 @@
               this.secondsInput = null;
               this.saveToLocalStorage();
 
-              await nextTick(); // Wait for DOM to update after data changes
-              this.scrollToStats(); // Scroll after the DOM has updated
+              await nextTick();
+              this.scrollToTop(); // Changed to scroll to top
             } else {
               alert(
                 "Please enter a valid distance (miles) and time (all fields)."
@@ -462,7 +460,6 @@
             }
           },
           async deleteRun(index) {
-            // Made async
             if (confirm("Are you sure you want to delete this run?")) {
               const runToDelete = this.runHistory[index];
 
@@ -486,8 +483,8 @@
 
               this.saveToLocalStorage();
 
-              await nextTick(); // Wait for DOM to update after data changes
-              this.scrollToStats(); // Scroll after the DOM has updated
+              await nextTick();
+              this.scrollToTop(); // Changed to scroll to top
 
               if ("vibrate" in navigator) navigator.vibrate(50);
             }
@@ -514,6 +511,7 @@
               }
             );
 
+            // The stats card is still referenced for its individual bounce animation
             gsap.fromTo(
               this.$refs.statsCard,
               { scale: 1, y: 0 },
@@ -528,16 +526,17 @@
             );
           },
 
-          // --- New scroll method ---
+          // --- MODIFIED scroll method to scroll to top ---
           scrollToTop() {
+            // nextTick ensures the DOM is fully updated before scrolling
             this.$nextTick(() => {
               window.scrollTo({
-                top: 0, // Scrolls to the very top (pixel 0)
-                behavior: "smooth", // Keeps the smooth animation
+                top: 0, // Scroll to the very top of the page
+                behavior: "smooth", // Smooth scrolling animation
               });
             });
           },
-          // --- End New scroll method ---
+          // --- End MODIFIED scroll method ---
 
           saveToLocalStorage() {
             localStorage.setItem("totalDistance", this.totalDistance);
@@ -546,7 +545,6 @@
             localStorage.setItem("runHistory", JSON.stringify(this.runHistory));
           },
           async resetStats() {
-            // Made async
             if (confirm("Are you sure you want to reset all stats?")) {
               const oldTotalDistance = this.totalDistance;
               const oldTotalTime = this.totalTime;
@@ -563,8 +561,8 @@
 
               this.saveToLocalStorage();
 
-              await nextTick(); // Wait for DOM to update after data changes
-              this.scrollToStats(); // Scroll after the DOM has updated
+              await nextTick();
+              this.scrollToTop(); // Changed to scroll to top
 
               if ("vibrate" in navigator) navigator.vibrate(100);
             }
