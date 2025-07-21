@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#1E3A8A" />
     <title>RunItUp</title>
     <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/icons/hermes-boot.png" />
+    <link rel="apple-touch-icon" href="/icons/hermes-bootcopy.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
@@ -52,7 +52,7 @@
       <div>
         <div class="text-center mb-3">
           <img
-            src="/icons/hermes-boot.png"
+            src="/icons/hermes-bootcopy.png"
             alt="RunItUp Logo"
             class="h-auto w-auto inline-block"
           />
@@ -374,7 +374,7 @@
               if (Notification.permission === "granted") {
                 new Notification("Workout Complete!", {
                   body: `You ran ${this.currentDistance.toFixed(2)} miles!`,
-                  icon: "/icons/hermes-boot.png",
+                  icon: "/icons/hermes-bootcopy.png",
                 });
               } else if (Notification.permission !== "denied") {
                 Notification.requestPermission();
@@ -416,6 +416,8 @@
                 "Please enter a valid distance (miles) and time (all fields)."
               );
             }
+          },
+          deleteRun(index) {
             if (confirm("Are you sure you want to delete this run?")) {
               const runToDelete = this.runHistory[index];
 
@@ -433,6 +435,7 @@
               if ("vibrate" in navigator) navigator.vibrate(50);
             }
           },
+
           saveToLocalStorage() {
             localStorage.setItem("totalDistance", this.totalDistance);
             localStorage.setItem("totalTime", this.totalTime);
