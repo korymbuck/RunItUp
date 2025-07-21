@@ -1,9 +1,9 @@
-const CACHE_NAME = "runitup-cache-v1";
+const CACHE_NAME = "runitup-cache-v2";
 const urlsToCache = [
   "/",
   "/index.html",
   "/manifest.json",
-  "/icons/hermes-boot.png",
+  "/icons/hermes-bootcopy.png",
   "https://cdn.tailwindcss.com",
   "https://unpkg.com/vue@3/dist/vue.global.js",
 ];
