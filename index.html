@@ -529,15 +529,12 @@
           },
 
           // --- New scroll method ---
-          scrollToStats() {
-            // nextTick ensures the DOM is fully updated before scrolling
+          scrollToTop() {
             this.$nextTick(() => {
-              if (this.$refs.statsCard) {
-                this.$refs.statsCard.scrollIntoView({
-                  behavior: "smooth", // Smooth scrolling animation
-                  block: "start", // Align the top of the element with the top of the viewport
-                });
-              }
+              window.scrollTo({
+                top: 0, // Scrolls to the very top (pixel 0)
+                behavior: "smooth", // Keeps the smooth animation
+              });
             });
           },
           // --- End New scroll method ---
