@@ -19,33 +19,6 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
-    <script type="module">
-      // Import the functions you need from the SDKs you need
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-      import { getAuth } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
-      import { getFirestore } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
-
-      // Your web app's Firebase configuration
-      const firebaseConfig = {
-        apiKey: "AIzaSyAjGZXRLdek2ZpKOCvoPjNmefcAEr_mAeA",
-        authDomain: "runitup-8bb34.firebaseapp.com",
-        projectId: "runitup-8bb34",
-        storageBucket: "runitup-8bb34.firebasestorage.app",
-        messagingSenderId: "925119325141",
-        appId: "1:925119325141:web:108e55019c4554f418935c",
-        measurementId: "G-27Q2DCGDCF",
-      };
-
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig);
-
-      // Make auth and db available to your main Vue script
-      window.firebase = {
-        auth: getAuth(app),
-        db: getFirestore(app),
-      };
-    </script>
-
     <style>
       html {
         background-color: #1e3a8a; /* Sets the overscroll color */
