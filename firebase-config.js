@@ -55,4 +55,5 @@ export {
   setDoc,
   updateDoc,
   writeBatch,
+  getDoc,
 };
