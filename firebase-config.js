@@ -20,6 +20,7 @@ import {
   setDoc,
   updateDoc,
   writeBatch,
+  getDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // YOUR WEB APP'S FIREBASE CONFIGURATION (PASTE IT HERE!)
