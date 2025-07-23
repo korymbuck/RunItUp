@@ -667,40 +667,30 @@
             }
           },
 
-          async loadUserStats(userId) {
-            if (!userId) {
-              this.totalDistance = 0;
-              this.totalTime = 0;
-              this.xp = 0;
-              this.animatedTotalDistance = 0;
-              this.animatedTotalTime = 0;
-              this.animatedXp = 0;
-              return;
-            }
-            try {
-              const userStatsDocRef = doc(db, "userStats", userId);
-              const userStatsDoc = await getDoc(userStatsDocRef); // Corrected: Use getDoc
+          async loadUserStats() {
+            if (this.user) {
+              const userDocRef = doc(db, "users", this.user.uid);
+              const userDocSnap = await getDoc(userDocRef);
 
-              if (userStatsDoc.exists()) {
-                const data = userStatsDoc.data();
-                this.totalDistance = data.totalDistance || 0;
-                this.totalTime = data.totalTime || 0;
-                this.xp = data.xp || 0;
+              if (userDocSnap.exists()) {
+                const userData = userDocSnap.data();
+                this.totalDistance = userData.totalDistance || 0;
+                this.totalTime = userData.totalTime || 0;
+                this.xp = userData.xp || 0;
+                this.runHistory = userData.runHistory || [];
+
+                this.saveToLocalStorage();
               } else {
-                this.totalDistance = 0;
-                this.totalTime = 0;
-                this.xp = 0;
-                await setDoc(userStatsDocRef, {
-                  totalDistance: 0,
-                  totalTime: 0,
-                  xp: 0,
+                await setDoc(userDocRef, {
+                  totalDistance: this.totalDistance,
+                  totalTime: this.totalTime,
+                  xp: this.xp,
+                  runHistory: this.runHistory,
                 });
+                this.saveToLocalStorage();
               }
-              this.animatedTotalDistance = this.totalDistance;
-              this.animatedTotalTime = this.totalTime;
-              this.animatedXp = this.xp;
-            } catch (error) {
-              console.error("Error loading user stats:", error);
+            } else {
+              this.loadFromLocalStorage();
             }
           },
 
@@ -823,27 +813,15 @@
         },
         mounted() {
           // Listen for auth state changes
-          onAuthStateChanged(auth, async (currentUser) => {
-            this.user = currentUser;
-            if (currentUser) {
-              console.log("User logged in:", currentUser.uid);
-              // Load user's stats and runs from Firestore
-              await this.loadUserStats(currentUser.uid);
-              await this.fetchUserRuns(currentUser.uid);
+          onAuthStateChanged(auth, (firebaseUser) => {
+            this.user = firebaseUser;
+            if (this.user) {
+              console.log("User logged in:", this.user.email);
+              this.loadUserStats();
+              this.updateUserStatsInFirestore();
             } else {
-              console.log("User logged out.");
-              // Clear local state if user logs out
-              this.user = null;
-              this.email = "";
-              this.password = "";
-              this.authMessage = "";
-              this.totalDistance = 0;
-              this.totalTime = 0;
-              this.xp = 0;
-              this.animatedTotalDistance = 0;
-              this.animatedTotalTime = 0;
-              this.animatedXp = 0;
-              this.runHistory = [];
+              console.log("User logged out");
+              this.loadFromLocalStorage();
             }
           });
 
