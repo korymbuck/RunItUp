@@ -679,7 +679,7 @@
             // If no user is logged in, load from localStorage
             // This handles initial load for unauthenticated users
             if (!this.user) {
-              this.loadFromLocalStorage();
+              this.loadFromLocalStorage(); // This populates totalDistance, totalTime, xp from localStorage
               return; // Exit if no user
             }
 
@@ -709,19 +709,16 @@
               this.totalDistance = initialStats.totalDistance;
               this.totalTime = initialStats.totalTime;
               this.xp = initialStats.xp;
-              // For a new user, local runHistory should be empty
-              this.runHistory = [];
-
+              // Removed: this.runHistory = []; // This is handled by fetchUserRuns
               this.saveToLocalStorage(); // And save these initial values to localStorage
             }
           },
 
           saveToLocalStorage() {
-            // This function is fine as it currently only saves totalDistance, totalTime, xp, and runHistory locally.
             localStorage.setItem("totalDistance", this.totalDistance);
             localStorage.setItem("totalTime", this.totalTime);
             localStorage.setItem("xp", this.xp);
-            localStorage.setItem("runHistory", JSON.stringify(this.runHistory)); // Ensure runHistory is also saved/loaded
+            localStorage.setItem("runHistory", JSON.stringify(this.runHistory));
           },
 
           loadFromLocalStorage() {
@@ -870,14 +867,15 @@
         },
         mounted() {
           // Listen for auth state changes
-          onAuthStateChanged(auth, (firebaseUser) => {
+          onAuthStateChanged(auth, async (firebaseUser) => {
+            // <--- ADD async here
             this.user = firebaseUser;
             if (this.user) {
               console.log("User logged in:", this.user.email);
-              this.loadUserStats(); // Load aggregated stats (totalDistance, time, xp)
-              this.fetchUserRuns(this.user.uid); // Load individual run history
+              await this.loadUserStats(); // <--- ADD await here
+              await this.fetchUserRuns(this.user.uid); // <--- ADD await here (good practice)
 
-              // Initialize animated stats with loaded data
+              // Initialize animated stats with loaded data AFTER loading is complete
               this.animatedTotalDistance = this.totalDistance;
               this.animatedTotalTime = this.totalTime;
               this.animatedXp = this.xp;
@@ -896,12 +894,6 @@
               this.animatedXp = 0;
             }
           });
-
-          // This part was previously in mounted, but should be handled within onAuthStateChanged for proper timing.
-          // this.animatedTotalDistance = this.totalDistance;
-          // this.animatedTotalTime = this.totalTime;
-          // this.animatedXp = this.xp;
-          // this.saveToLocalStorage();
 
           if (
             Notification.permission !== "granted" &&
