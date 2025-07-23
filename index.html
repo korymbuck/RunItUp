@@ -48,11 +48,16 @@
       .stat-card-bounce {
         will-change: transform, opacity;
       }
+      /* Hide Vue content until it's ready */
+      [v-cloak] {
+        display: none;
+      }
     </style>
   </head>
   <body class="min-h-screen font-sans">
     <div
       id="app"
+      v-cloak
       class="w-full max-w-md mx-auto px-6 py-3 flex-1 flex flex-col justify-between safe-area-inset"
     >
       <div
@@ -218,7 +223,7 @@
           <ul>
             <li
               v-for="(run, index) in runHistory"
-              :key="index"
+              :key="run.id || index"
               class="mb-2 text-white border-b border-gray-400 pb-2 last:border-b-0"
             >
               <p class="text-lg">
@@ -276,8 +281,8 @@
         doc,
         setDoc,
         updateDoc,
-        writeBatch, // Make sure writeBatch is also exported from firebase-config.js
-        getDoc, // Ensure getDoc is imported for single document fetches
+        writeBatch,
+        getDoc,
       } from "./firebase-config.js";
 
       function showInstallPrompt() {
@@ -342,7 +347,7 @@
             hoursInput: null,
             minutesInput: null,
             secondsInput: null,
-            runHistory: [], // Will be loaded from Firestore
+            runHistory: [], // Will be loaded from Firestore via fetchUserRuns
           };
         },
         computed: {
@@ -383,7 +388,7 @@
               this.authMessage = "Signed up successfully!";
               this.email = "";
               this.password = "";
-              // No need to fetch runs immediately here; onAuthStateChanged will handle it.
+              // onAuthStateChanged will handle data loading.
             } catch (error) {
               this.authMessage = `Error signing up: ${error.message}`;
               console.error("Sign up error:", error);
@@ -402,7 +407,7 @@
               this.authMessage = "Signed in successfully!";
               this.email = "";
               this.password = "";
-              // No need to fetch runs immediately here; onAuthStateChanged will handle it.
+              // onAuthStateChanged will handle data loading.
             } catch (error) {
               this.authMessage = `Error signing in: ${error.message}`;
               console.error("Sign in error:", error);
@@ -525,7 +530,7 @@
                 await nextTick();
                 this.scrollToTop();
 
-                this.fetchUserRuns(this.user.uid);
+                this.fetchUserRuns(this.user.uid); // Refresh run history after adding a new run
 
                 if (Notification.permission === "granted") {
                   new Notification("Workout Complete!", {
@@ -594,7 +599,7 @@
               await nextTick();
               this.scrollToTop();
 
-              this.fetchUserRuns(this.user.uid);
+              this.fetchUserRuns(this.user.uid); // Refresh run history after logging a run
             } else {
               alert(
                 "Please enter a valid distance (miles) and time (all fields)."
@@ -668,29 +673,68 @@
           },
 
           async loadUserStats() {
-            if (this.user) {
-              const userDocRef = doc(db, "users", this.user.uid);
-              const userDocSnap = await getDoc(userDocRef);
+            // This function now exclusively handles totalDistance, totalTime, and xp from 'userStats' collection.
+            // runHistory is handled by fetchUserRuns.
 
-              if (userDocSnap.exists()) {
-                const userData = userDocSnap.data();
-                this.totalDistance = userData.totalDistance || 0;
-                this.totalTime = userData.totalTime || 0;
-                this.xp = userData.xp || 0;
-                this.runHistory = userData.runHistory || [];
-
-                this.saveToLocalStorage();
-              } else {
-                await setDoc(userDocRef, {
-                  totalDistance: this.totalDistance,
-                  totalTime: this.totalTime,
-                  xp: this.xp,
-                  runHistory: this.runHistory,
-                });
-                this.saveToLocalStorage();
-              }
-            } else {
+            // If no user is logged in, load from localStorage
+            // This handles initial load for unauthenticated users
+            if (!this.user) {
               this.loadFromLocalStorage();
+              return; // Exit if no user
+            }
+
+            // For logged-in users, load from Firestore
+            const userStatsDocRef = doc(db, "userStats", this.user.uid);
+            const userDocSnap = await getDoc(userStatsDocRef);
+
+            if (userDocSnap.exists()) {
+              const userData = userDocSnap.data();
+              this.totalDistance = userData.totalDistance || 0;
+              this.totalTime = userData.totalTime || 0;
+              this.xp = userData.xp || 0;
+              // No longer loading runHistory here.
+              this.saveToLocalStorage(); // Update localStorage with the fetched Firestore data
+            } else {
+              // User document doesn't exist (new user or first login with this account).
+              // Initialize their Firestore document with explicit default values.
+              const initialStats = {
+                totalDistance: 0,
+                totalTime: 0,
+                xp: 0,
+              };
+
+              await setDoc(userStatsDocRef, initialStats);
+
+              // Update the Vue state with these initialized values
+              this.totalDistance = initialStats.totalDistance;
+              this.totalTime = initialStats.totalTime;
+              this.xp = initialStats.xp;
+              // For a new user, local runHistory should be empty
+              this.runHistory = [];
+
+              this.saveToLocalStorage(); // And save these initial values to localStorage
+            }
+          },
+
+          saveToLocalStorage() {
+            // This function is fine as it currently only saves totalDistance, totalTime, xp, and runHistory locally.
+            localStorage.setItem("totalDistance", this.totalDistance);
+            localStorage.setItem("totalTime", this.totalTime);
+            localStorage.setItem("xp", this.xp);
+            localStorage.setItem("runHistory", JSON.stringify(this.runHistory)); // Ensure runHistory is also saved/loaded
+          },
+
+          loadFromLocalStorage() {
+            this.totalDistance =
+              parseFloat(localStorage.getItem("totalDistance")) || 0;
+            this.totalTime = parseFloat(localStorage.getItem("totalTime")) || 0;
+            this.xp = parseFloat(localStorage.getItem("xp")) || 0;
+            try {
+              this.runHistory =
+                JSON.parse(localStorage.getItem("runHistory")) || [];
+            } catch (e) {
+              console.error("Error parsing run history from localStorage", e);
+              this.runHistory = [];
             }
           },
 
@@ -707,6 +751,7 @@
                 },
                 { merge: true }
               );
+              console.log("User stats updated in Firestore.");
             } catch (error) {
               console.error("Error updating user stats:", error);
             }
@@ -773,6 +818,7 @@
               const oldXp = this.xp;
 
               try {
+                // Delete all individual runs for the user from the "runs" collection
                 const q = query(
                   collection(db, "runs"),
                   where("userId", "==", this.user.uid)
@@ -783,22 +829,33 @@
                   batch.delete(docSnap.ref);
                 });
                 await batch.commit();
+                console.log(
+                  'All individual runs deleted from "runs" collection.'
+                );
 
+                // Reset aggregated stats in the "userStats" collection
                 const userStatsDocRef = doc(db, "userStats", this.user.uid);
                 await setDoc(userStatsDocRef, {
                   totalDistance: 0,
                   totalTime: 0,
                   xp: 0,
                 });
+                console.log(
+                  'Aggregated stats reset in "userStats" collection.'
+                );
 
+                // Reset local Vue data
                 this.totalDistance = 0;
                 this.totalTime = 0;
                 this.xp = 0;
-                this.runHistory = [];
+                this.runHistory = []; // Clear local run history
 
+                // Animate stats to zero
                 this.animateStat("totalDistance", oldTotalDistance, 0);
                 this.animateStat("totalTime", oldTotalTime, 0);
                 this.animateStat("xp", oldXp, 0);
+
+                this.saveToLocalStorage(); // Save the reset state to local storage
 
                 await nextTick();
                 this.scrollToTop();
@@ -817,12 +874,34 @@
             this.user = firebaseUser;
             if (this.user) {
               console.log("User logged in:", this.user.email);
-              this.loadUserStats();
+              this.loadUserStats(); // Load aggregated stats (totalDistance, time, xp)
+              this.fetchUserRuns(this.user.uid); // Load individual run history
+
+              // Initialize animated stats with loaded data
+              this.animatedTotalDistance = this.totalDistance;
+              this.animatedTotalTime = this.totalTime;
+              this.animatedXp = this.xp;
             } else {
               console.log("User logged out");
-              this.loadFromLocalStorage();
+              // When logged out, clear all data and load from local storage
+              this.totalDistance = 0;
+              this.totalTime = 0;
+              this.xp = 0;
+              this.runHistory = [];
+              this.loadFromLocalStorage(); // Load any anonymous local data if present
+
+              // Reset animated stats
+              this.animatedTotalDistance = 0;
+              this.animatedTotalTime = 0;
+              this.animatedXp = 0;
             }
           });
+
+          // This part was previously in mounted, but should be handled within onAuthStateChanged for proper timing.
+          // this.animatedTotalDistance = this.totalDistance;
+          // this.animatedTotalTime = this.totalTime;
+          // this.animatedXp = this.xp;
+          // this.saveToLocalStorage();
 
           if (
             Notification.permission !== "granted" &&
