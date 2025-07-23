@@ -55,6 +55,53 @@
       id="app"
       class="w-full max-w-md mx-auto px-6 py-3 flex-1 flex flex-col justify-between safe-area-inset"
     >
+      <div
+        v-if="!user"
+        class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6 text-white"
+      >
+        <h2 class="text-2xl font-semibold mb-4">Account</h2>
+        <input
+          type="email"
+          v-model="email"
+          placeholder="Email"
+          class="w-full p-3 mb-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+        />
+        <input
+          type="password"
+          v-model="password"
+          placeholder="Password"
+          class="w-full p-3 mb-4 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+        />
+        <button
+          @click="handleSignIn"
+          class="w-full p-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition active:bg-blue-700 mb-2"
+        >
+          Sign In
+        </button>
+        <button
+          @click="handleSignUp"
+          class="w-full p-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition active:bg-green-700"
+        >
+          Sign Up
+        </button>
+        <p v-if="authMessage" class="mt-4 text-center text-sm">
+          {{ authMessage }}
+        </p>
+      </div>
+
+      <div
+        v-if="user"
+        class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6 text-white text-center"
+      >
+        <h2 class="text-2xl font-semibold mb-2">Welcome, {{ user.email }}!</h2>
+        <button
+          @click="handleSignOut"
+          class="w-full p-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition active:bg-red-700"
+        >
+          Sign Out
+        </button>
+      </div>
+
       <div>
         <div class="text-center mb-3">
           <img
@@ -163,7 +210,6 @@
             </button>
           </div>
         </div>
-
         <div
           v-if="runHistory.length > 0"
           class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6"
@@ -211,7 +257,29 @@
         © 2025 RunItUp. All rights reserved.
       </footer>
     </div>
-    <script>
+
+    <script type="module">
+      // ALL Firebase imports should be at the top of this main script block
+      import {
+        auth,
+        db,
+        onAuthStateChanged,
+        signOut,
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
+        collection,
+        addDoc,
+        query,
+        where,
+        getDocs,
+        deleteDoc,
+        doc,
+        setDoc,
+        updateDoc,
+        writeBatch, // Make sure writeBatch is also exported from firebase-config.js
+        getDoc, // Ensure getDoc is imported for single document fetches
+      } from "./firebase-config.js";
+
       function showInstallPrompt() {
         if (
           navigator.userAgent.match(/iPhone|iPad|iPod/i) &&
@@ -252,16 +320,17 @@
         data() {
           return {
             levels: levels,
-            totalDistance:
-              parseFloat(localStorage.getItem("totalDistance")) || 0,
-            totalTime: parseFloat(localStorage.getItem("totalTime")) || 0,
-            xp: parseFloat(localStorage.getItem("xp")) || 0,
+            user: null, // Holds the authenticated Firebase user object
+            email: "",
+            password: "",
+            authMessage: "", // To display authentication messages (errors/success)
+            totalDistance: 0, // Will be loaded from Firestore
+            totalTime: 0, // Will be loaded from Firestore
+            xp: 0, // Will be loaded from Firestore
 
-            animatedTotalDistance:
-              parseFloat(localStorage.getItem("totalDistance")) || 0,
-            animatedTotalTime:
-              parseFloat(localStorage.getItem("totalTime")) || 0,
-            animatedXp: parseFloat(localStorage.getItem("xp")) || 0,
+            animatedTotalDistance: 0, // Will be initialized with Firestore data
+            animatedTotalTime: 0, // Will be initialized with Firestore data
+            animatedXp: 0, // Will be initialized with Firestore data
 
             isTracking: false,
             watchId: null,
@@ -273,7 +342,7 @@
             hoursInput: null,
             minutesInput: null,
             secondsInput: null,
-            runHistory: JSON.parse(localStorage.getItem("runHistory")) || [],
+            runHistory: [], // Will be loaded from Firestore
           };
         },
         computed: {
@@ -301,6 +370,58 @@
           },
         },
         methods: {
+          // --- NEW AUTHENTICATION METHODS ---
+          async handleSignUp() {
+            this.authMessage = ""; // Clear previous messages
+            try {
+              const userCredential = await createUserWithEmailAndPassword(
+                auth,
+                this.email,
+                this.password
+              );
+              this.user = userCredential.user;
+              this.authMessage = "Signed up successfully!";
+              this.email = "";
+              this.password = "";
+              // No need to fetch runs immediately here; onAuthStateChanged will handle it.
+            } catch (error) {
+              this.authMessage = `Error signing up: ${error.message}`;
+              console.error("Sign up error:", error);
+            }
+          },
+
+          async handleSignIn() {
+            this.authMessage = ""; // Clear previous messages
+            try {
+              const userCredential = await signInWithEmailAndPassword(
+                auth,
+                this.email,
+                this.password
+              );
+              this.user = userCredential.user;
+              this.authMessage = "Signed in successfully!";
+              this.email = "";
+              this.password = "";
+              // No need to fetch runs immediately here; onAuthStateChanged will handle it.
+            } catch (error) {
+              this.authMessage = `Error signing in: ${error.message}`;
+              console.error("Sign in error:", error);
+            }
+          },
+
+          async handleSignOut() {
+            this.authMessage = ""; // Clear previous messages
+            try {
+              await signOut(auth);
+              this.authMessage = "Signed out successfully.";
+              // onAuthStateChanged will set user to null and clear data
+            } catch (error) {
+              this.authMessage = `Error signing out: ${error.message}`;
+              console.error("Sign out error:", error);
+            }
+          },
+          // --- END NEW AUTHENTICATION METHODS ---
+
           formatTime(seconds, includeHours = false) {
             if (seconds === 0 || isNaN(seconds)) return "00:00";
             const hrs = Math.floor(seconds / 3600);
@@ -376,37 +497,46 @@
               const oldTotalTime = this.totalTime;
               const oldXp = this.xp;
 
-              this.totalDistance += this.currentDistance;
-              this.xp += this.currentDistance;
-              this.totalTime += workoutTime;
+              if (this.user) {
+                const newRunData = {
+                  userId: this.user.uid,
+                  date: new Date().toISOString(),
+                  distance: this.currentDistance,
+                  time: workoutTime,
+                  pace: workoutTime / this.currentDistance,
+                  timestamp: new Date(),
+                };
+                await addDoc(collection(db, "runs"), newRunData);
 
-              this.animateStat(
-                "totalDistance",
-                oldTotalDistance,
-                this.totalDistance
-              );
-              this.animateStat("totalTime", oldTotalTime, this.totalTime);
-              this.animateStat("xp", oldXp, this.xp);
+                this.totalDistance += this.currentDistance;
+                this.totalTime += workoutTime;
+                this.xp += this.currentDistance;
 
-              this.runHistory.unshift({
-                date: new Date().toISOString(),
-                distance: this.currentDistance,
-                time: workoutTime,
-                pace: workoutTime / this.currentDistance,
-              });
+                await this.updateUserStatsInFirestore();
 
-              this.saveToLocalStorage();
+                this.animateStat(
+                  "totalDistance",
+                  oldTotalDistance,
+                  this.totalDistance
+                );
+                this.animateStat("totalTime", oldTotalTime, this.totalTime);
+                this.animateStat("xp", oldXp, this.xp);
 
-              await nextTick();
-              this.scrollToTop(); // Changed to scroll to top
+                await nextTick();
+                this.scrollToTop();
 
-              if (Notification.permission === "granted") {
-                new Notification("Workout Complete!", {
-                  body: `You ran ${this.currentDistance.toFixed(2)} miles!`,
-                  icon: "/icons/boot.svg",
-                });
-              } else if (Notification.permission !== "denied") {
-                Notification.requestPermission();
+                this.fetchUserRuns(this.user.uid);
+
+                if (Notification.permission === "granted") {
+                  new Notification("Workout Complete!", {
+                    body: `You ran ${this.currentDistance.toFixed(2)} miles!`,
+                    icon: "/icons/boot.svg",
+                  });
+                } else if (Notification.permission !== "denied") {
+                  Notification.requestPermission();
+                }
+              } else {
+                alert("Please log in to save your workout data.");
               }
             }
             this.currentDistance = 0;
@@ -416,6 +546,11 @@
           },
           async logRun() {
             if ("vibrate" in navigator) navigator.vibrate(50);
+            if (!this.user) {
+              alert("Please log in to log a run.");
+              return;
+            }
+
             const dist = parseFloat(this.distanceInput);
             const hours = parseInt(this.hoursInput) || 0;
             const minutes = parseInt(this.minutesInput) || 0;
@@ -427,9 +562,21 @@
               const oldTotalTime = this.totalTime;
               const oldXp = this.xp;
 
+              const newRunData = {
+                userId: this.user.uid,
+                date: new Date().toISOString(),
+                distance: dist,
+                time: timeInSeconds,
+                pace: timeInSeconds / dist,
+                timestamp: new Date(),
+              };
+              await addDoc(collection(db, "runs"), newRunData);
+
               this.totalDistance += dist;
               this.totalTime += timeInSeconds;
               this.xp += dist;
+
+              await this.updateUserStatsInFirestore();
 
               this.animateStat(
                 "totalDistance",
@@ -439,21 +586,15 @@
               this.animateStat("totalTime", oldTotalTime, this.totalTime);
               this.animateStat("xp", oldXp, this.xp);
 
-              this.runHistory.unshift({
-                date: new Date().toISOString(),
-                distance: dist,
-                time: timeInSeconds,
-                pace: timeInSeconds / dist,
-              });
-
               this.distanceInput = null;
               this.hoursInput = null;
               this.minutesInput = null;
               this.secondsInput = null;
-              this.saveToLocalStorage();
 
               await nextTick();
-              this.scrollToTop(); // Changed to scroll to top
+              this.scrollToTop();
+
+              this.fetchUserRuns(this.user.uid);
             } else {
               alert(
                 "Please enter a valid distance (miles) and time (all fields)."
@@ -461,33 +602,123 @@
             }
           },
           async deleteRun(index) {
+            if (!this.user) {
+              alert("Please log in to delete runs.");
+              return;
+            }
+
             if (confirm("Are you sure you want to delete this run?")) {
               const runToDelete = this.runHistory[index];
 
-              const oldTotalDistance = this.totalDistance;
-              const oldTotalTime = this.totalTime;
-              const oldXp = this.xp;
+              if (runToDelete.id) {
+                await deleteDoc(doc(db, "runs", runToDelete.id));
 
-              this.totalDistance -= runToDelete.distance;
-              this.totalTime -= runToDelete.time;
-              this.xp -= runToDelete.distance;
+                const oldTotalDistance = this.totalDistance;
+                const oldTotalTime = this.totalTime;
+                const oldXp = this.xp;
 
-              this.animateStat(
-                "totalDistance",
-                oldTotalDistance,
-                this.totalDistance
+                this.totalDistance -= runToDelete.distance;
+                this.totalTime -= runToDelete.time;
+                this.xp -= runToDelete.distance;
+
+                await this.updateUserStatsInFirestore();
+
+                this.animateStat(
+                  "totalDistance",
+                  oldTotalDistance,
+                  this.totalDistance
+                );
+                this.animateStat("totalTime", oldTotalTime, this.totalTime);
+                this.animateStat("xp", oldXp, this.xp);
+
+                this.runHistory.splice(index, 1);
+
+                await nextTick();
+                this.scrollToTop();
+
+                if ("vibrate" in navigator) navigator.vibrate(50);
+              } else {
+                alert("Error: Run ID not found for deletion.");
+              }
+            }
+          },
+
+          async fetchUserRuns(userId) {
+            if (!userId) {
+              this.runHistory = [];
+              return;
+            }
+            try {
+              const q = query(
+                collection(db, "runs"),
+                where("userId", "==", userId)
               );
-              this.animateStat("totalTime", oldTotalTime, this.totalTime);
-              this.animateStat("xp", oldXp, this.xp);
+              const querySnapshot = await getDocs(q);
+              this.runHistory = querySnapshot.docs
+                .map((doc) => ({
+                  id: doc.id,
+                  ...doc.data(),
+                  date: doc.data().date,
+                  timestamp: doc.data().timestamp.toDate(),
+                }))
+                .sort((a, b) => b.timestamp - a.timestamp);
+            } catch (error) {
+              console.error("Error fetching runs:", error);
+            }
+          },
 
-              this.runHistory.splice(index, 1);
+          async loadUserStats(userId) {
+            if (!userId) {
+              this.totalDistance = 0;
+              this.totalTime = 0;
+              this.xp = 0;
+              this.animatedTotalDistance = 0;
+              this.animatedTotalTime = 0;
+              this.animatedXp = 0;
+              return;
+            }
+            try {
+              const userStatsDocRef = doc(db, "userStats", userId);
+              const userStatsDoc = await getDoc(userStatsDocRef); // Corrected: Use getDoc
 
-              this.saveToLocalStorage();
+              if (userStatsDoc.exists()) {
+                const data = userStatsDoc.data();
+                this.totalDistance = data.totalDistance || 0;
+                this.totalTime = data.totalTime || 0;
+                this.xp = data.xp || 0;
+              } else {
+                this.totalDistance = 0;
+                this.totalTime = 0;
+                this.xp = 0;
+                await setDoc(userStatsDocRef, {
+                  totalDistance: 0,
+                  totalTime: 0,
+                  xp: 0,
+                });
+              }
+              this.animatedTotalDistance = this.totalDistance;
+              this.animatedTotalTime = this.totalTime;
+              this.animatedXp = this.xp;
+            } catch (error) {
+              console.error("Error loading user stats:", error);
+            }
+          },
 
-              await nextTick();
-              this.scrollToTop(); // Changed to scroll to top
-
-              if ("vibrate" in navigator) navigator.vibrate(50);
+          async updateUserStatsInFirestore() {
+            if (!this.user) return;
+            try {
+              const userStatsDocRef = doc(db, "userStats", this.user.uid);
+              await setDoc(
+                userStatsDocRef,
+                {
+                  totalDistance: this.totalDistance,
+                  totalTime: this.totalTime,
+                  xp: this.xp,
+                },
+                { merge: true }
+              );
+            } catch (error) {
+              console.error("Error updating user stats:", error);
             }
           },
 
@@ -512,7 +743,6 @@
               }
             );
 
-            // The stats card is still referenced for its individual bounce animation
             gsap.fromTo(
               this.$refs.statsCard,
               { scale: 1, y: 0 },
@@ -527,54 +757,96 @@
             );
           },
 
-          // --- MODIFIED scroll method to scroll to top ---
           scrollToTop() {
-            // nextTick ensures the DOM is fully updated before scrolling
             this.$nextTick(() => {
               window.scrollTo({
-                top: 0, // Scroll to the very top of the page
-                behavior: "smooth", // Smooth scrolling animation
+                top: 0,
+                behavior: "smooth",
               });
             });
           },
-          // --- End MODIFIED scroll method ---
 
-          saveToLocalStorage() {
-            localStorage.setItem("totalDistance", this.totalDistance);
-            localStorage.setItem("totalTime", this.totalTime);
-            localStorage.setItem("xp", this.xp);
-            localStorage.setItem("runHistory", JSON.stringify(this.runHistory));
-          },
           async resetStats() {
-            if (confirm("Are you sure you want to reset all stats?")) {
+            if ("vibrate" in navigator) navigator.vibrate(100);
+            if (!this.user) {
+              alert("Please log in to reset stats.");
+              return;
+            }
+
+            if (
+              confirm(
+                "Are you sure you want to reset all stats? This cannot be undone!"
+              )
+            ) {
               const oldTotalDistance = this.totalDistance;
               const oldTotalTime = this.totalTime;
               const oldXp = this.xp;
 
-              this.totalDistance = 0;
-              this.totalTime = 0;
-              this.xp = 0;
-              this.runHistory = [];
+              try {
+                const q = query(
+                  collection(db, "runs"),
+                  where("userId", "==", this.user.uid)
+                );
+                const querySnapshot = await getDocs(q);
+                const batch = writeBatch(db);
+                querySnapshot.forEach((docSnap) => {
+                  batch.delete(docSnap.ref);
+                });
+                await batch.commit();
 
-              this.animateStat("totalDistance", oldTotalDistance, 0);
-              this.animateStat("totalTime", oldTotalTime, 0);
-              this.animateStat("xp", oldXp, 0);
+                const userStatsDocRef = doc(db, "userStats", this.user.uid);
+                await setDoc(userStatsDocRef, {
+                  totalDistance: 0,
+                  totalTime: 0,
+                  xp: 0,
+                });
 
-              this.saveToLocalStorage();
+                this.totalDistance = 0;
+                this.totalTime = 0;
+                this.xp = 0;
+                this.runHistory = [];
 
-              await nextTick();
-              this.scrollToTop(); // Changed to scroll to top
+                this.animateStat("totalDistance", oldTotalDistance, 0);
+                this.animateStat("totalTime", oldTotalTime, 0);
+                this.animateStat("xp", oldXp, 0);
 
-              if ("vibrate" in navigator) navigator.vibrate(100);
+                await nextTick();
+                this.scrollToTop();
+
+                alert("All stats and runs reset successfully!");
+              } catch (error) {
+                console.error("Error resetting stats:", error);
+                alert(`Failed to reset stats: ${error.message}`);
+              }
             }
           },
         },
         mounted() {
-          this.animatedTotalDistance = this.totalDistance;
-          this.animatedTotalTime = this.totalTime;
-          this.animatedXp = this.xp;
+          // Listen for auth state changes
+          onAuthStateChanged(auth, async (currentUser) => {
+            this.user = currentUser;
+            if (currentUser) {
+              console.log("User logged in:", currentUser.uid);
+              // Load user's stats and runs from Firestore
+              await this.loadUserStats(currentUser.uid);
+              await this.fetchUserRuns(currentUser.uid);
+            } else {
+              console.log("User logged out.");
+              // Clear local state if user logs out
+              this.user = null;
+              this.email = "";
+              this.password = "";
+              this.authMessage = "";
+              this.totalDistance = 0;
+              this.totalTime = 0;
+              this.xp = 0;
+              this.animatedTotalDistance = 0;
+              this.animatedTotalTime = 0;
+              this.animatedXp = 0;
+              this.runHistory = [];
+            }
+          });
 
-          this.saveToLocalStorage();
           if (
             Notification.permission !== "granted" &&
             Notification.permission !== "denied"

@@ -1,0 +1,23 @@
+{
+  "name": "runitup",
+  "version": "1.0.0",
+  "description": "RunItUp",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/korymbuck/RunItUp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/korymbuck/RunItUp/issues"
+  },
+  "homepage": "https://github.com/korymbuck/RunItUp#readme",
+  "dependencies": {
+    "firebase": "^12.0.0"
+  }
+}
