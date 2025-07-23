@@ -818,7 +818,6 @@
             if (this.user) {
               console.log("User logged in:", this.user.email);
               this.loadUserStats();
-              this.updateUserStatsInFirestore();
             } else {
               console.log("User logged out");
               this.loadFromLocalStorage();
