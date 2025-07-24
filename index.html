@@ -375,6 +375,34 @@
           },
         },
         methods: {
+          recalculateStatsFromHistory() {
+            if (!this.runHistory || this.runHistory.length === 0) {
+              this.totalDistance = 0;
+              this.totalTime = 0;
+              this.xp = 0;
+              return;
+            }
+
+            const newTotalDistance = this.runHistory.reduce(
+              (acc, run) => acc + run.distance,
+              0
+            );
+            const newTotalTime = this.runHistory.reduce(
+              (acc, run) => acc + run.time,
+              0
+            );
+            const newXp = this.runHistory.reduce(
+              (acc, run) => acc + run.distance,
+              0
+            ); // Assuming XP is based on distance
+
+            this.totalDistance = newTotalDistance;
+            this.totalTime = newTotalTime;
+            this.xp = newXp;
+
+            // Optional but recommended: Update the userStats document in Firestore to keep it in sync.
+            this.updateUserStatsInFirestore();
+          },
           // --- NEW AUTHENTICATION METHODS ---
           async handleSignUp() {
             this.authMessage = ""; // Clear previous messages
@@ -651,6 +679,7 @@
           async fetchUserRuns(userId) {
             if (!userId) {
               this.runHistory = [];
+              this.recalculateStatsFromHistory(); // Recalculate to reset stats to zero
               return;
             }
             try {
@@ -664,53 +693,24 @@
                   id: doc.id,
                   ...doc.data(),
                   date: doc.data().date,
-                  timestamp: doc.data().timestamp.toDate(),
+                  // The timestamp might be null on older records, handle that gracefully
+                  timestamp: doc.data().timestamp
+                    ? doc.data().timestamp.toDate()
+                    : new Date(doc.data().date),
                 }))
                 .sort((a, b) => b.timestamp - a.timestamp);
+
+              // ✨ KEY CHANGE: Recalculate stats AFTER fetching the complete run history
+              this.recalculateStatsFromHistory();
             } catch (error) {
               console.error("Error fetching runs:", error);
             }
           },
 
           async loadUserStats() {
-            // This function now exclusively handles totalDistance, totalTime, and xp from 'userStats' collection.
-            // runHistory is handled by fetchUserRuns.
-
-            // If no user is logged in, load from localStorage
-            // This handles initial load for unauthenticated users
             if (!this.user) {
-              this.loadFromLocalStorage(); // This populates totalDistance, totalTime, xp from localStorage
-              return; // Exit if no user
-            }
-
-            // For logged-in users, load from Firestore
-            const userStatsDocRef = doc(db, "userStats", this.user.uid);
-            const userDocSnap = await getDoc(userStatsDocRef);
-
-            if (userDocSnap.exists()) {
-              const userData = userDocSnap.data();
-              this.totalDistance = userData.totalDistance || 0;
-              this.totalTime = userData.totalTime || 0;
-              this.xp = userData.xp || 0;
-              // No longer loading runHistory here.
-              this.saveToLocalStorage(); // Update localStorage with the fetched Firestore data
-            } else {
-              // User document doesn't exist (new user or first login with this account).
-              // Initialize their Firestore document with explicit default values.
-              const initialStats = {
-                totalDistance: 0,
-                totalTime: 0,
-                xp: 0,
-              };
-
-              await setDoc(userStatsDocRef, initialStats);
-
-              // Update the Vue state with these initialized values
-              this.totalDistance = initialStats.totalDistance;
-              this.totalTime = initialStats.totalTime;
-              this.xp = initialStats.xp;
-              // Removed: this.runHistory = []; // This is handled by fetchUserRuns
-              this.saveToLocalStorage(); // And save these initial values to localStorage
+              this.loadFromLocalStorage();
+              return;
             }
           },
 
@@ -867,31 +867,29 @@
         },
         mounted() {
           // Listen for auth state changes
-          onAuthStateChanged(auth, async (firebaseUser) => {
-            // <--- ADD async here
-            this.user = firebaseUser;
-            if (this.user) {
-              console.log("User logged in:", this.user.email);
-              await this.loadUserStats(); // <--- ADD await here
-              await this.fetchUserRuns(this.user.uid); // <--- ADD await here (good practice)
+          onAuthStateChanged(auth, async (user) => {
+            if (user) {
+              // User is signed in.
+              this.user = user;
+              this.authMessage = "";
 
-              // Initialize animated stats with loaded data AFTER loading is complete
-              this.animatedTotalDistance = this.totalDistance;
-              this.animatedTotalTime = this.totalTime;
-              this.animatedXp = this.xp;
-            } else {
-              console.log("User logged out");
-              // When logged out, clear all data and load from local storage
-              this.totalDistance = 0;
-              this.totalTime = 0;
-              this.xp = 0;
-              this.runHistory = [];
-              this.loadFromLocalStorage(); // Load any anonymous local data if present
+              // The ONLY call you need to make to load all user data.
+              await this.fetchUserRuns(user.uid);
 
-              // Reset animated stats
+              // Animate stats from 0 to their new values on login
               this.animatedTotalDistance = 0;
               this.animatedTotalTime = 0;
               this.animatedXp = 0;
+              this.animateStat("totalDistance", 0, this.totalDistance);
+              this.animateStat("totalTime", 0, this.totalTime);
+              this.animateStat("xp", 0, this.xp);
+            } else {
+              // User is signed out.
+              this.user = null;
+              this.email = "";
+              this.password = "";
+              this.runHistory = []; // Clear history
+              this.recalculateStatsFromHistory(); // This will correctly set stats to 0
             }
           });
 
