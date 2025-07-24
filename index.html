@@ -177,7 +177,7 @@
           <h2 class="text-2xl font-semibold mb-4 text-white">Run History</h2>
           <ul>
             <li
-              v-for="(run, index) in runHistory"
+              v-for="(run, index) in displayedRuns"
               :key="run.id || index"
               class="mb-2 text-white border-b border-gray-400 pb-2 last:border-b-0"
             >
@@ -202,6 +202,13 @@
               </button>
             </li>
           </ul>
+          <button
+            v-if="visibleRunsCount < runHistory.length"
+            @click="showMoreRuns"
+            class="w-full p-2 mt-4 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition active:bg-blue-700"
+          >
+            See More
+          </button>
         </div>
 
         <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
@@ -424,6 +431,7 @@
             friendUsername: "",
             friends: [],
             friendsListenerUnsubscribe: null,
+            visibleRunsCount: 2,
           };
         },
         computed: {
@@ -449,8 +457,14 @@
                   (this.currentLevel.xp - prevLevel.xp)) *
                   100;
           },
+          displayedRuns() {
+            return this.runHistory.slice(0, this.visibleRunsCount);
+          },
         },
         methods: {
+          showMoreRuns() {
+            this.visibleRunsCount += 5;
+          },
           // --- MODAL & AUTH METHODS ---
           openAuthModal() {
             this.isAuthModalVisible = true;
@@ -821,6 +835,9 @@
                     : new Date(doc.data().date),
                 }))
                 .sort((a, b) => b.timestamp - a.timestamp);
+
+              this.visibleRunsCount = 2;
+
               this.recalculateStatsFromHistory();
             } catch (error) {
               console.error("Error fetching runs:", error);
@@ -923,7 +940,6 @@
               this.displayName = "";
               this.runHistory = [];
               this.friends = [];
-              // No longer need to clear incomingRequests
               this.recalculateStatsFromHistory();
               this.openAuthModal();
               if (this.friendsListenerUnsubscribe) {
