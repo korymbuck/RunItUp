@@ -58,7 +58,7 @@
       v-cloak
       class="w-full max-w-md mx-auto px-6 py-3 flex-1 flex flex-col justify-between safe-area-inset"
     >
-      <div>
+      <div v-if="currentPage === 'home'">
         <div class="text-center mb-3">
           <img
             src="/icons/boot.svg"
@@ -215,17 +215,98 @@
         </div>
       </div>
 
+      <div v-if="currentPage === 'social'" class="text-white">
+        <h2 class="text-3xl font-semibold mb-6 text-center">Social</h2>
+
+        <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-semibold mb-2">Add a Friend</h3>
+          <input
+            v-model="friendEmail"
+            type="email"
+            placeholder="Enter friend's email"
+            class="w-full p-2 mb-2 rounded-lg bg-gray-100 text-gray-800"
+          />
+          <button
+            @click="sendFriendRequest"
+            class="w-full p-2 bg-green-500 rounded-lg"
+          >
+            Send Request
+          </button>
+        </div>
+
+        <div
+          v-if="incomingRequests.length > 0"
+          class="bg-white bg-opacity-10 p-4 rounded-lg mb-6"
+        >
+          <h3 class="text-xl font-semibold mb-2">Friend Requests</h3>
+          <ul>
+            <li
+              v-for="req in incomingRequests"
+              :key="req.id"
+              class="flex justify-between items-center mb-2"
+            >
+              <span>{{ req.fromName }}</span>
+              <div>
+                <button
+                  @click="acceptFriendRequest(req)"
+                  class="px-2 py-1 bg-green-500 rounded-lg mr-2"
+                >
+                  Accept
+                </button>
+                <button
+                  @click="declineFriendRequest(req)"
+                  class="px-2 py-1 bg-red-500 rounded-lg"
+                >
+                  Decline
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+          <h3 class="text-xl font-semibold mb-2">Friends</h3>
+          <ul v-if="friends.length > 0">
+            <li
+              v-for="friend in friends"
+              :key="friend.uid"
+              class="border-b border-gray-400 py-2"
+            >
+              <p class="text-lg font-bold">{{ friend.displayName }}</p>
+              <p>
+                Distance: {{ friend.stats ?
+                friend.stats.totalDistance.toFixed(2) : 0 }} miles
+              </p>
+              <p>XP: {{ friend.stats ? Math.floor(friend.stats.xp) : 0 }}</p>
+            </li>
+          </ul>
+          <p v-else>You haven't added any friends yet.</p>
+        </div>
+      </div>
+
       <footer class="text-center text-sm mt-6 mb-4 text-white">
-        <div v-if="user" class="mb-4">
-          <p>Welcome, {{ user.email }}!</p>
+        <div v-if="user" class="mb-4 flex justify-center space-x-4">
+          <button
+            @click="currentPage = 'home'"
+            :class="{'bg-yellow-300 text-black': currentPage === 'home', 'bg-blue-500': currentPage !== 'home'}"
+            class="px-4 py-2 font-semibold rounded-lg"
+          >
+            Home
+          </button>
+          <button
+            @click="currentPage = 'social'"
+            :class="{'bg-yellow-300 text-black': currentPage === 'social', 'bg-blue-500': currentPage !== 'social'}"
+            class="px-4 py-2 font-semibold rounded-lg"
+          >
+            Social
+          </button>
           <button
             @click="handleSignOut"
-            class="mt-1 px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition active:bg-red-700"
+            class="px-4 py-2 bg-red-500 font-semibold rounded-lg"
           >
             Sign Out
           </button>
         </div>
-
         © 2025 RunItUp. All rights reserved.
       </footer>
 
@@ -288,6 +369,8 @@
         doc,
         setDoc,
         writeBatch,
+        onSnapshot, // Make sure onSnapshot is imported
+        getDoc, // Make sure getDoc is imported
       } from "./firebase-config.js";
 
       function showInstallPrompt() {
@@ -329,6 +412,7 @@
       const app = createApp({
         data() {
           return {
+            // Original App State
             levels: levels,
             user: null,
             email: "",
@@ -351,7 +435,14 @@
             minutesInput: null,
             secondsInput: null,
             runHistory: [],
-            isAuthModalVisible: false, // For the modal
+            isAuthModalVisible: false,
+
+            // New Social State
+            currentPage: "home",
+            friendEmail: "",
+            friends: [],
+            incomingRequests: [],
+            friendsListenerUnsubscribe: null,
           };
         },
         computed: {
@@ -387,23 +478,6 @@
             this.isAuthModalVisible = false;
             this.authMessage = "";
           },
-          async handleSignUp() {
-            this.authMessage = "";
-            try {
-              const userCredential = await createUserWithEmailAndPassword(
-                auth,
-                this.email,
-                this.password
-              );
-              this.user = userCredential.user;
-              this.email = "";
-              this.password = "";
-              this.closeAuthModal();
-            } catch (error) {
-              this.authMessage = `Error signing up: ${error.message}`;
-              console.error("Sign up error:", error);
-            }
-          },
           async handleSignIn() {
             this.authMessage = "";
             try {
@@ -418,17 +492,151 @@
               this.closeAuthModal();
             } catch (error) {
               this.authMessage = `Error signing in: ${error.message}`;
-              console.error("Sign in error:", error);
+            }
+          },
+          async handleSignUp() {
+            this.authMessage = "";
+            try {
+              const userCredential = await createUserWithEmailAndPassword(
+                auth,
+                this.email,
+                this.password
+              );
+              const user = userCredential.user;
+              const displayName = this.email.split("@")[0];
+              const userDocRef = doc(db, "users", user.uid);
+              await setDoc(userDocRef, {
+                displayName: displayName,
+                email: this.email,
+              });
+              this.user = user;
+              this.email = "";
+              this.password = "";
+              this.closeAuthModal();
+            } catch (error) {
+              this.authMessage = `Error signing up: ${error.message}`;
             }
           },
           async handleSignOut() {
-            this.authMessage = "";
-            try {
-              await signOut(auth);
-            } catch (error) {
-              this.authMessage = `Error signing out: ${error.message}`;
-              console.error("Sign out error:", error);
+            if (this.friendsListenerUnsubscribe) {
+              this.friendsListenerUnsubscribe();
+              this.friendsListenerUnsubscribe = null;
             }
+            await signOut(auth);
+          },
+
+          // --- SOCIAL METHODS ---
+          async sendFriendRequest() {
+            if (!this.friendEmail) {
+              alert("Please enter an email.");
+              return;
+            }
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", this.friendEmail));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+              alert("User not found.");
+              return;
+            }
+            const friendDoc = querySnapshot.docs[0];
+            const friendUid = friendDoc.id;
+
+            if (friendUid === this.user.uid) {
+              alert("You can't add yourself as a friend.");
+              return;
+            }
+            const myProfile = await getDoc(doc(db, "users", this.user.uid));
+            await addDoc(collection(db, "friendRequests"), {
+              fromUid: this.user.uid,
+              fromName: myProfile.data().displayName,
+              toUid: friendUid,
+              status: "pending",
+            });
+            alert("Friend request sent!");
+            this.friendEmail = "";
+          },
+          async acceptFriendRequest(request) {
+            const meDocRef = doc(db, "users", this.user.uid);
+            const meDoc = await getDoc(meDocRef);
+            const batch = writeBatch(db);
+            const myFriendRef = doc(
+              db,
+              `users/${this.user.uid}/friends`,
+              request.fromUid
+            );
+            batch.set(myFriendRef, {
+              displayName: request.fromName,
+              friendSince: new Date(),
+            });
+            const theirFriendRef = doc(
+              db,
+              `users/${request.fromUid}/friends`,
+              this.user.uid
+            );
+            batch.set(theirFriendRef, {
+              displayName: meDoc.data().displayName,
+              friendSince: new Date(),
+            });
+            const requestRef = doc(db, "friendRequests", request.id);
+            batch.delete(requestRef);
+            await batch.commit();
+          },
+          async declineFriendRequest(request) {
+            const requestRef = doc(db, "friendRequests", request.id);
+            await deleteDoc(requestRef);
+          },
+          setupSocialListeners() {
+            if (!this.user || this.friendsListenerUnsubscribe) return;
+            const friendsQuery = query(
+              collection(db, `users/${this.user.uid}/friends`)
+            );
+            this.friendsListenerUnsubscribe = onSnapshot(
+              friendsQuery,
+              (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                  const friendUid = change.doc.id;
+                  const friendData = change.doc.data();
+                  if (change.type === "added") {
+                    const statsDocRef = doc(db, "userStats", friendUid);
+                    onSnapshot(statsDocRef, (statsDoc) => {
+                      const statsData = statsDoc.data() || {
+                        totalDistance: 0,
+                        xp: 0,
+                      };
+                      const existingFriendIndex = this.friends.findIndex(
+                        (f) => f.uid === friendUid
+                      );
+                      if (existingFriendIndex > -1) {
+                        this.friends[existingFriendIndex].stats = statsData;
+                      } else {
+                        this.friends.push({
+                          uid: friendUid,
+                          displayName: friendData.displayName,
+                          stats: statsData,
+                        });
+                      }
+                    });
+                  }
+                  if (change.type === "removed") {
+                    this.friends = this.friends.filter(
+                      (f) => f.uid !== friendUid
+                    );
+                  }
+                });
+              }
+            );
+            const requestsQuery = query(
+              collection(db, "friendRequests"),
+              where("toUid", "==", this.user.uid),
+              where("status", "==", "pending")
+            );
+            onSnapshot(requestsQuery, (snapshot) => {
+              this.incomingRequests = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+              }));
+            });
           },
 
           // --- UTILITY METHODS ---
@@ -519,8 +727,7 @@
                 timestamp: new Date(),
               };
               await addDoc(collection(db, "runs"), newRunData);
-              await this.fetchUserRuns(this.user.uid); // Refreshes history & recalculates stats
-
+              await this.fetchUserRuns(this.user.uid);
               if (Notification.permission === "granted") {
                 new Notification("Workout Complete!", {
                   body: `You ran ${this.currentDistance.toFixed(2)} miles!`,
@@ -558,8 +765,7 @@
                 timestamp: new Date(),
               };
               await addDoc(collection(db, "runs"), newRunData);
-              await this.fetchUserRuns(this.user.uid); // Refreshes history & recalculates stats
-
+              await this.fetchUserRuns(this.user.uid);
               this.distanceInput = null;
               this.hoursInput = null;
               this.minutesInput = null;
@@ -580,7 +786,7 @@
               const runToDelete = this.runHistory[index];
               if (runToDelete.id) {
                 await deleteDoc(doc(db, "runs", runToDelete.id));
-                await this.fetchUserRuns(this.user.uid); // Refreshes history & recalculates stats
+                await this.fetchUserRuns(this.user.uid);
                 if ("vibrate" in navigator) navigator.vibrate(50);
               } else {
                 alert("Error: Run ID not found for deletion.");
@@ -593,10 +799,8 @@
             const oldTotalDistance = this.totalDistance;
             const oldTotalTime = this.totalTime;
             const oldXp = this.xp;
-
             let newTotalDistance = 0;
             let newTotalTime = 0;
-
             if (this.runHistory && this.runHistory.length > 0) {
               newTotalDistance = this.runHistory.reduce(
                 (acc, run) => acc + run.distance,
@@ -607,11 +811,9 @@
                 0
               );
             }
-
             this.totalDistance = newTotalDistance;
             this.totalTime = newTotalTime;
-            this.xp = newTotalDistance; // XP is based on total distance
-
+            this.xp = newTotalDistance;
             this.animateStat(
               "totalDistance",
               oldTotalDistance,
@@ -619,7 +821,6 @@
             );
             this.animateStat("totalTime", oldTotalTime, this.totalTime);
             this.animateStat("xp", oldXp, this.xp);
-
             this.updateUserStatsInFirestore();
           },
           async fetchUserRuns(userId) {
@@ -644,7 +845,6 @@
                     : new Date(doc.data().date),
                 }))
                 .sort((a, b) => b.timestamp - a.timestamp);
-
               this.recalculateStatsFromHistory();
             } catch (error) {
               console.error("Error fetching runs:", error);
@@ -722,8 +922,7 @@
                 await batch.commit();
 
                 this.runHistory = [];
-                this.recalculateStatsFromHistory(); // This will reset stats to 0 and update Firestore
-
+                this.recalculateStatsFromHistory();
                 alert("All stats and runs reset successfully!");
               } catch (error) {
                 console.error("Error resetting stats:", error);
@@ -738,15 +937,19 @@
             if (user) {
               this.closeAuthModal();
               await this.fetchUserRuns(user.uid);
+              await this.setupSocialListeners();
             } else {
               this.runHistory = [];
               this.recalculateStatsFromHistory();
               this.openAuthModal();
+              if (this.friendsListenerUnsubscribe) {
+                this.friendsListenerUnsubscribe();
+                this.friendsListenerUnsubscribe = null;
+              }
             }
           });
         },
       });
-
       app.mount("#app");
     </script>
   </body>
