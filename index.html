@@ -226,21 +226,11 @@
           </button>
         </div>
 
-        <div v-else class="w-full max-w-xs mx-auto mb-4">
-          <button
-            @click="openAuthModal"
-            class="w-full p-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition active:bg-blue-700"
-          >
-            Account
-          </button>
-        </div>
-
         © 2025 RunItUp. All rights reserved.
       </footer>
 
       <div
         v-if="isAuthModalVisible"
-        @click.self="closeAuthModal"
         class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
       >
         <div
@@ -277,12 +267,6 @@
           >
             {{ authMessage }}
           </p>
-          <button
-            @click="closeAuthModal"
-            class="w-full p-2 mt-4 text-white text-sm rounded-lg hover:bg-white hover:bg-opacity-20 transition"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
@@ -752,10 +736,12 @@
           onAuthStateChanged(auth, async (user) => {
             this.user = user;
             if (user) {
+              this.closeAuthModal();
               await this.fetchUserRuns(user.uid);
             } else {
               this.runHistory = [];
               this.recalculateStatsFromHistory();
+              this.openAuthModal();
             }
           });
         },
