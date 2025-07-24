@@ -356,13 +356,13 @@
       // Import services from your config file
       import { auth, db } from "./firebase-config.js";
     
-      // Import ALL necessary functions directly from the Firebase SDKs
+      // Import ALL necessary functions directly from the Firebase SDK CDN URLs
       import {
         onAuthStateChanged,
         signOut,
         createUserWithEmailAndPassword,
         signInWithEmailAndPassword,
-      } from "firebase/auth";
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
       import {
         collection,
         addDoc,
@@ -375,8 +375,7 @@
         writeBatch,
         onSnapshot,
         getDoc,
-      } from "firebase/firestore";
-    
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     
       function showInstallPrompt() {
         if (
@@ -942,9 +941,13 @@
               await this.fetchUserRuns(user.uid);
               await this.setupSocialListeners();
             } else {
+              // Clear all user-specific data on logout
               this.runHistory = [];
-              this.recalculateStatsFromHistory();
+              this.friends = [];
+              this.incomingRequests = [];
+              this.recalculateStatsFromHistory(); // Will reset stats to 0
               this.openAuthModal();
+              
               if (this.friendsListenerUnsubscribe) {
                 this.friendsListenerUnsubscribe();
                 this.friendsListenerUnsubscribe = null;
