@@ -285,28 +285,35 @@
       </div>
 
       <footer class="text-center text-sm mt-6 mb-4 text-white">
-        <div v-if="user" class="mb-4 flex justify-center space-x-4">
-          <button
-            @click="currentPage = 'home'"
-            :class="{'bg-yellow-300 text-black': currentPage === 'home', 'bg-blue-500': currentPage !== 'home'}"
-            class="px-4 py-2 font-semibold rounded-lg"
-          >
-            Home
-          </button>
-          <button
-            @click="currentPage = 'social'"
-            :class="{'bg-yellow-300 text-black': currentPage === 'social', 'bg-blue-500': currentPage !== 'social'}"
-            class="px-4 py-2 font-semibold rounded-lg"
-          >
-            Social
-          </button>
-          <button
-            @click="handleSignOut"
-            class="px-4 py-2 bg-red-500 font-semibold rounded-lg"
-          >
-            Sign Out
-          </button>
+        <div v-if="user">
+          <p class="mb-2">Welcome, {{ user.email }}!</p>
+      
+          <div class="mb-4 flex justify-center space-x-4">
+            <button
+              v-if="currentPage !== 'home'"
+              @click="currentPage = 'home'"
+              class="px-4 py-2 font-semibold rounded-lg bg-blue-500"
+            >
+              Home
+            </button>
+      
+            <button
+              v-if="currentPage !== 'social'"
+              @click="currentPage = 'social'"
+              class="px-4 py-2 font-semibold rounded-lg bg-blue-500"
+            >
+              Social
+            </button>
+      
+            <button
+              @click="handleSignOut"
+              class="px-4 py-2 bg-red-500 font-semibold rounded-lg"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
+      
         © 2025 RunItUp. All rights reserved.
       </footer>
 
