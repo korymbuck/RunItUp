@@ -219,53 +219,20 @@
         <h2 class="text-3xl font-semibold mb-6 text-center">Social</h2>
 
         <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-6">
-          <h3 class="text-xl font-semibold mb-2">Add a Friend</h3>
+          <h3 class="text-xl font-semibold mb-2">Follow a User</h3>
           <input
             v-model="friendUsername"
             type="text"
-            placeholder="Enter friend's username"
+            placeholder="Enter user's username"
             class="w-full p-2 mb-2 rounded-lg bg-gray-100 text-gray-800"
           />
-          <button
-            @click="sendFriendRequest"
-            class="w-full p-2 bg-green-500 rounded-lg"
-          >
-            Send Request
+          <button @click="addFriend" class="w-full p-2 bg-green-500 rounded-lg">
+            Follow User
           </button>
         </div>
 
-        <div
-          v-if="incomingRequests.length > 0"
-          class="bg-white bg-opacity-10 p-4 rounded-lg mb-6"
-        >
-          <h3 class="text-xl font-semibold mb-2">Friend Requests</h3>
-          <ul>
-            <li
-              v-for="req in incomingRequests"
-              :key="req.id"
-              class="flex justify-between items-center mb-2"
-            >
-              <span>{{ req.fromName }}</span>
-              <div>
-                <button
-                  @click="acceptFriendRequest(req)"
-                  class="px-2 py-1 bg-green-500 rounded-lg mr-2"
-                >
-                  Accept
-                </button>
-                <button
-                  @click="declineFriendRequest(req)"
-                  class="px-2 py-1 bg-red-500 rounded-lg"
-                >
-                  Decline
-                </button>
-              </div>
-            </li>
-          </ul>
-        </div>
-
         <div class="bg-white bg-opacity-10 p-4 rounded-lg">
-          <h3 class="text-xl font-semibold mb-2">Friends</h3>
+          <h3 class="text-xl font-semibold mb-2">Following</h3>
           <ul v-if="friends.length > 0">
             <li
               v-for="friend in friends"
@@ -280,7 +247,7 @@
               <p>XP: {{ friend.stats ? Math.floor(friend.stats.xp) : 0 }}</p>
             </li>
           </ul>
-          <p v-else>You haven't added any friends yet.</p>
+          <p v-else>You aren't following anyone yet.</p>
         </div>
       </div>
 
@@ -456,7 +423,6 @@
             displayName: "",
             friendUsername: "",
             friends: [],
-            incomingRequests: [],
             friendsListenerUnsubscribe: null,
           };
         },
@@ -509,7 +475,6 @@
               this.authMessage = `Error signing in: ${error.message}`;
             }
           },
-          // In methods: {}
           async handleSignUp() {
             this.authMessage = "";
             if (!this.displayName || !this.email || !this.password) {
@@ -517,8 +482,22 @@
               return;
             }
 
-            // The uniqueness check that was causing the error has been removed.
-            // We now go straight to creating the account.
+            const usersRef = collection(db, "users");
+            const q = query(
+              usersRef,
+              where(
+                "displayName_lowercase",
+                "==",
+                this.displayName.toLowerCase()
+              )
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+              this.authMessage = "This username is already taken.";
+              return;
+            }
+
             try {
               const userCredential = await createUserWithEmailAndPassword(
                 auth,
@@ -527,7 +506,6 @@
               );
               const user = userCredential.user;
 
-              // Create the user's profile document in Firestore
               const userDocRef = doc(db, "users", user.uid);
               await setDoc(userDocRef, {
                 displayName: this.displayName,
@@ -535,15 +513,12 @@
                 email: this.email.toLowerCase(),
               });
 
-              // Clear the form and close the modal
               this.user = user;
               this.email = "";
               this.password = "";
               this.displayName = "";
               this.closeAuthModal();
             } catch (error) {
-              // This will now correctly catch errors from createUserWithEmailAndPassword
-              // such as "email-already-in-use".
               this.authMessage = `Error signing up: ${error.message}`;
             }
           },
@@ -556,7 +531,7 @@
           },
 
           // --- SOCIAL METHODS ---
-          async sendFriendRequest() {
+          async addFriend() {
             if (!this.friendUsername) {
               alert("Please enter a username.");
               return;
@@ -578,50 +553,25 @@
             }
             const friendDoc = querySnapshot.docs[0];
             const friendUid = friendDoc.id;
+            const friendData = friendDoc.data();
 
             if (friendUid === this.user.uid) {
-              alert("You can't add yourself as a friend.");
+              alert("You can't follow yourself.");
               return;
             }
-            const myProfile = await getDoc(doc(db, "users", this.user.uid));
-            await addDoc(collection(db, "friendRequests"), {
-              fromUid: this.user.uid,
-              fromName: myProfile.data().displayName,
-              toUid: friendUid,
-              status: "pending",
-            });
-            alert("Friend request sent!");
-            this.friendUsername = "";
-          },
-          async acceptFriendRequest(request) {
-            const meDocRef = doc(db, "users", this.user.uid);
-            const meDoc = await getDoc(meDocRef);
-            const batch = writeBatch(db);
-            const myFriendRef = doc(
+
+            const friendRef = doc(
               db,
               `users/${this.user.uid}/friends`,
-              request.fromUid
+              friendUid
             );
-            batch.set(myFriendRef, {
-              displayName: request.fromName,
-              friendSince: new Date(),
+            await setDoc(friendRef, {
+              displayName: friendData.displayName,
+              followedAt: new Date(),
             });
-            const theirFriendRef = doc(
-              db,
-              `users/${request.fromUid}/friends`,
-              this.user.uid
-            );
-            batch.set(theirFriendRef, {
-              displayName: meDoc.data().displayName,
-              friendSince: new Date(),
-            });
-            const requestRef = doc(db, "friendRequests", request.id);
-            batch.delete(requestRef);
-            await batch.commit();
-          },
-          async declineFriendRequest(request) {
-            const requestRef = doc(db, "friendRequests", request.id);
-            await deleteDoc(requestRef);
+
+            alert(`You are now following ${friendData.displayName}!`);
+            this.friendUsername = "";
           },
           setupSocialListeners() {
             if (!this.user || this.friendsListenerUnsubscribe) return;
@@ -663,17 +613,6 @@
                 });
               }
             );
-            const requestsQuery = query(
-              collection(db, "friendRequests"),
-              where("toUid", "==", this.user.uid),
-              where("status", "==", "pending")
-            );
-            onSnapshot(requestsQuery, (snapshot) => {
-              this.incomingRequests = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-              }));
-            });
           },
 
           // --- UTILITY METHODS ---
@@ -984,7 +923,7 @@
               this.displayName = "";
               this.runHistory = [];
               this.friends = [];
-              this.incomingRequests = [];
+              // No longer need to clear incomingRequests
               this.recalculateStatsFromHistory();
               this.openAuthModal();
               if (this.friendsListenerUnsubscribe) {
