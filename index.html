@@ -221,9 +221,9 @@
         <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-6">
           <h3 class="text-xl font-semibold mb-2">Add a Friend</h3>
           <input
-            v-model="friendEmail"
-            type="email"
-            placeholder="Enter friend's email"
+            v-model="friendUsername"
+            type="text"
+            placeholder="Enter friend's username"
             class="w-full p-2 mb-2 rounded-lg bg-gray-100 text-gray-800"
           />
           <button
@@ -286,8 +286,8 @@
 
       <footer class="text-center text-sm mt-6 mb-4 text-white">
         <div v-if="user">
-          <p class="mb-2">Welcome, {{ user.email }}!</p>
-      
+          <p class="mb-2">Hello, {{ displayName }}!</p>
+
           <div class="mb-4 flex justify-center space-x-4">
             <button
               v-if="currentPage !== 'home'"
@@ -296,7 +296,6 @@
             >
               Home
             </button>
-      
             <button
               v-if="currentPage !== 'social'"
               @click="currentPage = 'social'"
@@ -304,7 +303,6 @@
             >
               Social
             </button>
-      
             <button
               @click="handleSignOut"
               class="px-4 py-2 bg-red-500 font-semibold rounded-lg"
@@ -313,7 +311,6 @@
             </button>
           </div>
         </div>
-      
         © 2025 RunItUp. All rights reserved.
       </footer>
 
@@ -325,6 +322,12 @@
           class="bg-blue-900 p-6 rounded-lg shadow-lg text-white w-full max-w-sm"
         >
           <h2 class="text-2xl font-semibold mb-4 text-center">Account</h2>
+          <input
+            type="text"
+            v-model="displayName"
+            placeholder="Username"
+            class="w-full p-3 mb-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+          />
           <input
             type="email"
             v-model="email"
@@ -362,7 +365,7 @@
     <script type="module">
       // Import services from your config file
       import { auth, db } from "./firebase-config.js";
-    
+
       // Import ALL necessary functions directly from the Firebase SDK CDN URLs
       import {
         onAuthStateChanged,
@@ -383,7 +386,7 @@
         onSnapshot,
         getDoc,
       } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    
+
       function showInstallPrompt() {
         if (
           navigator.userAgent.match(/iPhone|iPad|iPod/i) &&
@@ -404,7 +407,7 @@
         });
       }
       const { createApp, nextTick } = Vue;
-    
+
       const levels = [
         { name: "Bronze", emoji: "🥉", xp: 25 },
         { name: "Silver", emoji: "🥈", xp: 50 },
@@ -419,7 +422,7 @@
         { name: "Mythic", emoji: "🌟", xp: 25600 },
         { name: "Legendary", emoji: "🏆", xp: Infinity },
       ];
-    
+
       const app = createApp({
         data() {
           return {
@@ -447,10 +450,11 @@
             secondsInput: null,
             runHistory: [],
             isAuthModalVisible: false,
-    
+
             // New Social State
             currentPage: "home",
-            friendEmail: "",
+            displayName: "",
+            friendUsername: "",
             friends: [],
             incomingRequests: [],
             friendsListenerUnsubscribe: null,
@@ -507,6 +511,27 @@
           },
           async handleSignUp() {
             this.authMessage = "";
+            if (!this.displayName || !this.email || !this.password) {
+              this.authMessage = "Please fill out all fields.";
+              return;
+            }
+
+            const usersRef = collection(db, "users");
+            const q = query(
+              usersRef,
+              where(
+                "displayName_lowercase",
+                "==",
+                this.displayName.toLowerCase()
+              )
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+              this.authMessage = "This username is already taken.";
+              return;
+            }
+
             try {
               const userCredential = await createUserWithEmailAndPassword(
                 auth,
@@ -514,15 +539,18 @@
                 this.password
               );
               const user = userCredential.user;
-              const displayName = this.email.split("@")[0];
+
               const userDocRef = doc(db, "users", user.uid);
               await setDoc(userDocRef, {
-                displayName: displayName,
-                email: this.email,
+                displayName: this.displayName,
+                displayName_lowercase: this.displayName.toLowerCase(),
+                email: this.email.toLowerCase(),
               });
+
               this.user = user;
               this.email = "";
               this.password = "";
+              this.displayName = "";
               this.closeAuthModal();
             } catch (error) {
               this.authMessage = `Error signing up: ${error.message}`;
@@ -535,24 +563,31 @@
             }
             await signOut(auth);
           },
-    
+
           // --- SOCIAL METHODS ---
           async sendFriendRequest() {
-            if (!this.friendEmail) {
-              alert("Please enter an email.");
+            if (!this.friendUsername) {
+              alert("Please enter a username.");
               return;
             }
             const usersRef = collection(db, "users");
-            const q = query(usersRef, where("email", "==", this.friendEmail));
+            const q = query(
+              usersRef,
+              where(
+                "displayName_lowercase",
+                "==",
+                this.friendUsername.toLowerCase()
+              )
+            );
             const querySnapshot = await getDocs(q);
-    
+
             if (querySnapshot.empty) {
               alert("User not found.");
               return;
             }
             const friendDoc = querySnapshot.docs[0];
             const friendUid = friendDoc.id;
-    
+
             if (friendUid === this.user.uid) {
               alert("You can't add yourself as a friend.");
               return;
@@ -565,7 +600,7 @@
               status: "pending",
             });
             alert("Friend request sent!");
-            this.friendEmail = "";
+            this.friendUsername = "";
           },
           async acceptFriendRequest(request) {
             const meDocRef = doc(db, "users", this.user.uid);
@@ -611,8 +646,10 @@
                   if (change.type === "added") {
                     const statsDocRef = doc(db, "userStats", friendUid);
                     onSnapshot(statsDocRef, (statsDoc) => {
-                      const statsData =
-                        statsDoc.data() || { totalDistance: 0, xp: 0 };
+                      const statsData = statsDoc.data() || {
+                        totalDistance: 0,
+                        xp: 0,
+                      };
                       const existingFriendIndex = this.friends.findIndex(
                         (f) => f.uid === friendUid
                       );
@@ -647,7 +684,7 @@
               }));
             });
           },
-    
+
           // --- UTILITY METHODS ---
           formatTime(seconds, includeHours = false) {
             if (seconds === 0 || isNaN(seconds)) return "00:00";
@@ -676,7 +713,7 @@
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             return R * c;
           },
-    
+
           // --- WORKOUT & LOGGING METHODS ---
           startWorkout() {
             if ("vibrate" in navigator) navigator.vibrate(50);
@@ -726,7 +763,7 @@
                 return;
               }
               const workoutTime = (Date.now() - this.startTime) / 1000;
-    
+
               const newRunData = {
                 userId: this.user.uid,
                 date: new Date().toISOString(),
@@ -757,13 +794,13 @@
               alert("Please log in to log a run.");
               return;
             }
-    
+
             const dist = parseFloat(this.distanceInput);
             const hours = parseInt(this.hoursInput) || 0;
             const minutes = parseInt(this.minutesInput) || 0;
             const seconds = parseInt(this.secondsInput) || 0;
             const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
-    
+
             if (dist > 0 && timeInSeconds > 0) {
               const newRunData = {
                 userId: this.user.uid,
@@ -790,7 +827,7 @@
               alert("Please log in to delete runs.");
               return;
             }
-    
+
             if (confirm("Are you sure you want to delete this run?")) {
               const runToDelete = this.runHistory[index];
               if (runToDelete.id) {
@@ -802,7 +839,7 @@
               }
             }
           },
-    
+
           // --- DATA & STATE MANAGEMENT ---
           recalculateStatsFromHistory() {
             const oldTotalDistance = this.totalDistance;
@@ -929,7 +966,7 @@
                   batch.delete(docSnap.ref);
                 });
                 await batch.commit();
-    
+
                 this.runHistory = [];
                 this.recalculateStatsFromHistory();
                 alert("All stats and runs reset successfully!");
@@ -942,19 +979,23 @@
         },
         mounted() {
           onAuthStateChanged(auth, async (user) => {
-            this.user = user;
             if (user) {
+              this.user = user;
+              const userDoc = await getDoc(doc(db, "users", user.uid));
+              if (userDoc.exists()) {
+                this.displayName = userDoc.data().displayName;
+              }
               this.closeAuthModal();
               await this.fetchUserRuns(user.uid);
               await this.setupSocialListeners();
             } else {
-              // Clear all user-specific data on logout
+              this.user = null;
+              this.displayName = "";
               this.runHistory = [];
               this.friends = [];
               this.incomingRequests = [];
-              this.recalculateStatsFromHistory(); // Will reset stats to 0
+              this.recalculateStatsFromHistory();
               this.openAuthModal();
-              
               if (this.friendsListenerUnsubscribe) {
                 this.friendsListenerUnsubscribe();
                 this.friendsListenerUnsubscribe = null;
@@ -965,7 +1006,5 @@
       });
       app.mount("#app");
     </script>
-    </body>
-    </html>
   </body>
 </html>
