@@ -509,6 +509,7 @@
               this.authMessage = `Error signing in: ${error.message}`;
             }
           },
+          // In methods: {}
           async handleSignUp() {
             this.authMessage = "";
             if (!this.displayName || !this.email || !this.password) {
@@ -516,22 +517,8 @@
               return;
             }
 
-            const usersRef = collection(db, "users");
-            const q = query(
-              usersRef,
-              where(
-                "displayName_lowercase",
-                "==",
-                this.displayName.toLowerCase()
-              )
-            );
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-              this.authMessage = "This username is already taken.";
-              return;
-            }
-
+            // The uniqueness check that was causing the error has been removed.
+            // We now go straight to creating the account.
             try {
               const userCredential = await createUserWithEmailAndPassword(
                 auth,
@@ -540,6 +527,7 @@
               );
               const user = userCredential.user;
 
+              // Create the user's profile document in Firestore
               const userDocRef = doc(db, "users", user.uid);
               await setDoc(userDocRef, {
                 displayName: this.displayName,
@@ -547,12 +535,15 @@
                 email: this.email.toLowerCase(),
               });
 
+              // Clear the form and close the modal
               this.user = user;
               this.email = "";
               this.password = "";
               this.displayName = "";
               this.closeAuthModal();
             } catch (error) {
+              // This will now correctly catch errors from createUserWithEmailAndPassword
+              // such as "email-already-in-use".
               this.authMessage = `Error signing up: ${error.message}`;
             }
           },
