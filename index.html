@@ -19,6 +19,13 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap"
+      rel="stylesheet"
+    />
+
     <style>
       html {
         background-color: #1e3a8a; /* Sets the overscroll color */
@@ -26,6 +33,7 @@
       body {
         overscroll-behavior: none; /* Prevents overscroll bounce on iOS */
         -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on iOS */
+        font-family: "Orbitron", sans-serif; /* Applied new font */
       }
       .safe-area-inset {
         padding-top: env(safe-area-inset-top);
@@ -39,16 +47,34 @@
       button:active {
         transform: scale(0.95);
       }
-      input {
-        font-family: -apple-system, sans-serif;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-      }
       .stat-card-bounce {
         will-change: transform, opacity;
       }
       [v-cloak] {
         display: none;
+      }
+
+      /* New Styling Classes */
+      .glass-card {
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); /* Subtle blue glow */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .futuristic-input {
+        background-color: rgba(255, 255, 255, 0.05);
+        border: none;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 0;
+        color: white;
+        transition: border-color 0.3s;
+        font-family: -apple-system, sans-serif; /* Keep inputs with a standard font */
+      }
+
+      .futuristic-input:focus {
+        outline: none;
+        border-bottom-color: #fbbf24; /* Yellow glow on focus */
       }
     </style>
   </head>
@@ -68,27 +94,41 @@
         </div>
 
         <div
-          class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6 stat-card-bounce"
+          class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6 stat-card-bounce glass-card"
           ref="statsCard"
         >
-          <h2 class="text-2xl font-semibold mb-2 text-white">Stats</h2>
-          <p class="text-lg text-white">
-            Total Distance: {{ animatedTotalDistance.toFixed(2) }} miles
-          </p>
-          <p class="text-lg text-white">
-            Total Time: {{ formatTime(animatedTotalTime, true) }}
-          </p>
-          <p class="text-lg text-white">XP: {{ Math.floor(animatedXp) }}</p>
-          <div class="mt-4">
+          <h2 class="text-2xl font-semibold mb-4 text-white">Stats</h2>
+          <div class="space-y-4">
+            <div>
+              <p class="text-sm text-gray-300 uppercase">Total Distance</p>
+              <p class="text-4xl font-bold text-white">
+                {{ animatedTotalDistance.toFixed(2) }}
+                <span class="text-xl text-gray-300">miles</span>
+              </p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-300 uppercase">Total Time</p>
+              <p class="text-4xl font-bold text-white">
+                {{ formatTime(animatedTotalTime, true) }}
+              </p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-300 uppercase">XP</p>
+              <p class="text-4xl font-bold text-white">
+                {{ Math.floor(animatedXp) }}
+              </p>
+            </div>
+          </div>
+          <div class="mt-6">
             <div class="flex items-center mb-2">
               <span class="text-2xl mr-2">{{ currentLevel.emoji }}</span>
               <span class="text-lg font-semibold text-white"
                 >Level: {{ currentLevel.name }}</span
               >
             </div>
-            <div class="w-full bg-gray-300 rounded-full h-4">
+            <div class="w-full bg-gray-700 rounded-full h-4">
               <div
-                class="bg-yellow-300 h-4 rounded-full"
+                class="bg-yellow-400 h-4 rounded-full"
                 :style="{ width: progress + '%' }"
               ></div>
             </div>
@@ -100,12 +140,14 @@
           </div>
         </div>
 
-        <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
+        <div
+          class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6 glass-card"
+        >
           <h2 class="text-2xl font-semibold mb-4 text-white">Start Workout</h2>
           <button
             :disabled="isTracking"
             @click="startWorkout"
-            class="w-full p-3 bg-yellow-300 text-gray-800 font-semibold rounded-lg hover:bg-yellow-400 transition active:bg-yellow-500"
+            class="w-full p-3 bg-yellow-400 text-gray-900 font-bold rounded-lg hover:bg-yellow-500 transition active:bg-yellow-600"
             :class="{ 'opacity-50 cursor-not-allowed': isTracking }"
           >
             {{ isTracking ? 'Tracking...' : 'Start Workout' }}
@@ -126,7 +168,9 @@
           </div>
         </div>
 
-        <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
+        <div
+          class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6 glass-card"
+        >
           <h2 class="text-2xl font-semibold mb-4 text-white">Log a Run</h2>
           <div>
             <input
@@ -134,21 +178,21 @@
               type="number"
               step="0.01"
               placeholder="Distance (miles)"
-              class="w-full p-3 mb-4 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+              class="w-full p-3 mb-4 futuristic-input"
             />
             <div class="flex space-x-2 mb-4">
               <input
                 v-model.number="hoursInput"
                 type="number"
                 placeholder="Hours"
-                class="w-1/3 p-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+                class="w-1/3 p-3 futuristic-input"
                 min="0"
               />
               <input
                 v-model.number="minutesInput"
                 type="number"
                 placeholder="Minutes"
-                class="w-1/3 p-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+                class="w-1/3 p-3 futuristic-input"
                 min="0"
                 max="59"
               />
@@ -156,14 +200,14 @@
                 v-model.number="secondsInput"
                 type="number"
                 placeholder="Seconds"
-                class="w-1/3 p-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+                class="w-1/3 p-3 futuristic-input"
                 min="0"
                 max="59"
               />
             </div>
             <button
               @click="logRun"
-              class="w-full p-3 bg-yellow-300 text-gray-800 font-semibold rounded-lg hover:bg-yellow-400 transition active:bg-yellow-500"
+              class="w-full p-3 bg-yellow-400 text-gray-900 font-bold rounded-lg hover:bg-yellow-500 transition active:bg-yellow-600"
             >
               Log Run
             </button>
@@ -172,14 +216,14 @@
 
         <div
           v-if="runHistory.length > 0"
-          class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6"
+          class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6 glass-card"
         >
           <h2 class="text-2xl font-semibold mb-4 text-white">Run History</h2>
           <ul>
             <li
               v-for="(run, index) in displayedRuns"
               :key="run.id || index"
-              class="mb-2 text-white border-b border-gray-400 pb-2 last:border-b-0"
+              class="mb-2 text-white border-b border-gray-700 pb-2 last:border-b-0"
             >
               <p class="text-lg">
                 <strong>Date:</strong>
@@ -211,7 +255,9 @@
           </button>
         </div>
 
-        <div class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6">
+        <div
+          class="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg mb-6 glass-card"
+        >
           <h2 class="text-2xl font-semibold mb-4 text-white">Reset Progress</h2>
           <button
             @click="resetStats"
@@ -234,13 +280,13 @@
           </button>
         </div>
 
-        <div class="bg-white bg-opacity-10 p-4 rounded-lg">
+        <div class="bg-white bg-opacity-10 p-4 rounded-lg glass-card">
           <h3 class="text-xl font-semibold mb-2">Following</h3>
           <ul v-if="friends.length > 0">
             <li
               v-for="friend in friends"
               :key="friend.uid"
-              class="flex justify-between items-center border-b border-gray-400 py-2"
+              class="flex justify-between items-center border-b border-gray-700 py-2"
             >
               <div>
                 <p class="text-lg font-bold">{{ friend.displayName }}</p>
@@ -298,26 +344,26 @@
         class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
       >
         <div
-          class="bg-blue-900 p-6 rounded-lg shadow-lg text-white w-full max-w-sm"
+          class="bg-blue-900 p-6 rounded-lg shadow-lg text-white w-full max-w-sm glass-card"
         >
           <h2 class="text-2xl font-semibold mb-4 text-center">Account</h2>
           <input
             type="text"
             v-model="displayName"
             placeholder="Username"
-            class="w-full p-3 mb-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+            class="w-full p-3 mb-3 futuristic-input"
           />
           <input
             type="email"
             v-model="email"
             placeholder="Email"
-            class="w-full p-3 mb-3 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+            class="w-full p-3 mb-3 futuristic-input"
           />
           <input
             type="password"
             v-model="password"
             placeholder="Password"
-            class="w-full p-3 mb-4 rounded-lg bg-gray-100 text-gray-800 focus:outline-none"
+            class="w-full p-3 mb-4 futuristic-input"
           />
           <button
             @click="handleSignIn"
@@ -346,14 +392,14 @@
         class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
       >
         <div
-          class="bg-blue-900 p-6 rounded-lg shadow-lg text-white w-full max-w-sm"
+          class="bg-blue-900 p-6 rounded-lg shadow-lg text-white w-full max-w-sm glass-card"
         >
           <h3 class="text-xl font-semibold mb-4">Follow a User</h3>
           <input
             v-model="friendUsername"
             type="text"
             placeholder="Enter user's username"
-            class="w-full p-2 mb-3 rounded-lg bg-gray-100 text-gray-800"
+            class="w-full p-2 mb-3 futuristic-input"
           />
           <button @click="addFriend" class="w-full p-2 bg-green-500 rounded-lg">
             Follow User
