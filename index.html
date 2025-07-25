@@ -225,16 +225,12 @@
       <div v-if="currentPage === 'social'" class="text-white">
         <h2 class="text-3xl font-semibold mb-6 text-center">Social</h2>
 
-        <div class="bg-white bg-opacity-10 p-4 rounded-lg mb-6">
-          <h3 class="text-xl font-semibold mb-2">Follow a User</h3>
-          <input
-            v-model="friendUsername"
-            type="text"
-            placeholder="Enter user's username"
-            class="w-full p-2 mb-2 rounded-lg bg-gray-100 text-gray-800"
-          />
-          <button @click="addFriend" class="w-full p-2 bg-green-500 rounded-lg">
-            Follow User
+        <div class="mb-6">
+          <button
+            @click="openFollowModal"
+            class="w-full p-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition active:bg-green-700"
+          >
+            Follow a New User
           </button>
         </div>
 
@@ -343,6 +339,33 @@
           </p>
         </div>
       </div>
+
+      <div
+        v-if="isFollowModalVisible"
+        @click.self="closeFollowModal"
+        class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
+      >
+        <div
+          class="bg-blue-900 p-6 rounded-lg shadow-lg text-white w-full max-w-sm"
+        >
+          <h3 class="text-xl font-semibold mb-4">Follow a User</h3>
+          <input
+            v-model="friendUsername"
+            type="text"
+            placeholder="Enter user's username"
+            class="w-full p-2 mb-3 rounded-lg bg-gray-100 text-gray-800"
+          />
+          <button @click="addFriend" class="w-full p-2 bg-green-500 rounded-lg">
+            Follow User
+          </button>
+          <button
+            @click="closeFollowModal"
+            class="w-full p-2 mt-4 text-white text-sm rounded-lg hover:bg-white hover:bg-opacity-20 transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
 
     <script type="module">
@@ -441,6 +464,7 @@
             friends: [],
             friendsListenerUnsubscribe: null,
             visibleRunsCount: 2,
+            isFollowModalVisible: false,
           };
         },
         computed: {
@@ -471,9 +495,17 @@
           },
         },
         methods: {
-          // In methods: {}
+          showMoreRuns() {
+            this.visibleRunsCount += 5;
+          },
+          openFollowModal() {
+            this.isFollowModalVisible = true;
+          },
+          closeFollowModal() {
+            this.isFollowModalVisible = false;
+            this.friendUsername = "";
+          },
           async unfollowUser(friendToUnfollow) {
-            // A confirmation dialog is good practice to prevent accidental unfollows
             if (
               !confirm(
                 `Are you sure you want to unfollow ${friendToUnfollow.displayName}?`
@@ -493,9 +525,6 @@
               console.error("Error unfollowing user:", error);
               alert("Could not unfollow user. Please try again.");
             }
-          },
-          showMoreRuns() {
-            this.visibleRunsCount += 5;
           },
           // --- MODAL & AUTH METHODS ---
           openAuthModal() {
@@ -528,10 +557,7 @@
               return;
             }
 
-            // This version goes straight to creating the account without
-            // the username check that was causing the permissions error.
             try {
-              // 1. Create the user in Firebase Authentication
               const userCredential = await createUserWithEmailAndPassword(
                 auth,
                 this.email,
@@ -539,7 +565,6 @@
               );
               const user = userCredential.user;
 
-              // 2. Create the user's profile document in Firestore
               const userDocRef = doc(db, "users", user.uid);
               await setDoc(userDocRef, {
                 displayName: this.displayName,
@@ -547,14 +572,12 @@
                 email: this.email.toLowerCase(),
               });
 
-              // 3. Clear the form and close the modal
               this.user = user;
               this.email = "";
               this.password = "";
-              this.displayName = ""; // This should already be in your data object
+              this.displayName = "";
               this.closeAuthModal();
             } catch (error) {
-              // This will correctly catch other errors, like "email-already-in-use".
               this.authMessage = `Error signing up: ${error.message}`;
             }
           },
@@ -608,6 +631,7 @@
 
             alert(`You are now following ${friendData.displayName}!`);
             this.friendUsername = "";
+            this.closeFollowModal();
           },
           setupSocialListeners() {
             if (!this.user || this.friendsListenerUnsubscribe) return;
