@@ -496,23 +496,10 @@
               return;
             }
 
-            const usersRef = collection(db, "users");
-            const q = query(
-              usersRef,
-              where(
-                "displayName_lowercase",
-                "==",
-                this.displayName.toLowerCase()
-              )
-            );
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-              this.authMessage = "This username is already taken.";
-              return;
-            }
-
+            // This version goes straight to creating the account without
+            // the username check that was causing the permissions error.
             try {
+              // 1. Create the user in Firebase Authentication
               const userCredential = await createUserWithEmailAndPassword(
                 auth,
                 this.email,
@@ -520,6 +507,7 @@
               );
               const user = userCredential.user;
 
+              // 2. Create the user's profile document in Firestore
               const userDocRef = doc(db, "users", user.uid);
               await setDoc(userDocRef, {
                 displayName: this.displayName,
@@ -527,12 +515,14 @@
                 email: this.email.toLowerCase(),
               });
 
+              // 3. Clear the form and close the modal
               this.user = user;
               this.email = "";
               this.password = "";
-              this.displayName = "";
+              this.displayName = ""; // This should already be in your data object
               this.closeAuthModal();
             } catch (error) {
+              // This will correctly catch other errors, like "email-already-in-use".
               this.authMessage = `Error signing up: ${error.message}`;
             }
           },
