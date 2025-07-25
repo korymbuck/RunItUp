@@ -290,11 +290,16 @@
             >
               <div>
                 <p class="text-lg font-bold">{{ friend.displayName }}</p>
+
                 <p>
-                  Distance: {{ friend.stats ?
+                  Total Distance: {{ friend.stats ?
                   friend.stats.totalDistance.toFixed(2) : 0 }} miles
                 </p>
-                <p>XP: {{ friend.stats ? Math.floor(friend.stats.xp) : 0 }}</p>
+
+                <p>
+                  Total Time: {{ friend.stats ?
+                  formatTime(friend.stats.totalTime, true) : '00:00:00' }}
+                </p>
               </div>
 
               <button
@@ -305,6 +310,7 @@
               </button>
             </li>
           </ul>
+          <p v-else>You aren't following anyone yet.</p>
           <p v-else>You aren't following anyone yet.</p>
         </div>
       </div>
