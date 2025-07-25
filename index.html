@@ -244,14 +244,23 @@
             <li
               v-for="friend in friends"
               :key="friend.uid"
-              class="border-b border-gray-400 py-2"
+              class="flex justify-between items-center border-b border-gray-400 py-2"
             >
-              <p class="text-lg font-bold">{{ friend.displayName }}</p>
-              <p>
-                Distance: {{ friend.stats ?
-                friend.stats.totalDistance.toFixed(2) : 0 }} miles
-              </p>
-              <p>XP: {{ friend.stats ? Math.floor(friend.stats.xp) : 0 }}</p>
+              <div>
+                <p class="text-lg font-bold">{{ friend.displayName }}</p>
+                <p>
+                  Distance: {{ friend.stats ?
+                  friend.stats.totalDistance.toFixed(2) : 0 }} miles
+                </p>
+                <p>XP: {{ friend.stats ? Math.floor(friend.stats.xp) : 0 }}</p>
+              </div>
+
+              <button
+                @click="unfollowUser(friend)"
+                class="px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded-lg"
+              >
+                Unfollow
+              </button>
             </li>
           </ul>
           <p v-else>You aren't following anyone yet.</p>
@@ -462,6 +471,29 @@
           },
         },
         methods: {
+          // In methods: {}
+          async unfollowUser(friendToUnfollow) {
+            // A confirmation dialog is good practice to prevent accidental unfollows
+            if (
+              !confirm(
+                `Are you sure you want to unfollow ${friendToUnfollow.displayName}?`
+              )
+            ) {
+              return;
+            }
+
+            try {
+              const friendRef = doc(
+                db,
+                `users/${this.user.uid}/friends`,
+                friendToUnfollow.uid
+              );
+              await deleteDoc(friendRef);
+            } catch (error) {
+              console.error("Error unfollowing user:", error);
+              alert("Could not unfollow user. Please try again.");
+            }
+          },
           showMoreRuns() {
             this.visibleRunsCount += 5;
           },
